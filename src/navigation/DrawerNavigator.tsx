@@ -1,5 +1,6 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
+import AnswerSheetScanScreen from '../answer-sheet/AnswerSheetScanScreen';
 import AcademicSetupScreen from '../academic-setup/AcademicSetupScreen';
 import FinalGradesScreen from '../class-record/FinalGradesScreen';
 import GradingSheetScreen from '../class-record/GradingSheetScreen';
@@ -32,6 +33,7 @@ const SCREENS: Record<string, React.ComponentType<any>> = {
   'students/class-record': GradingSheetScreen,
   'students/class-record/submitted-scores': SubmittedScoresScreen,
   'students/class-record/final-grades': FinalGradesScreen,
+  'students/class-record/answer-sheets': AnswerSheetScanScreen,
   admin: UserManagementScreen,
   settings: SettingsScreen,
   ...Object.fromEntries(SCHOOL_FORMS.map((f) => [`school-forms/${f.code.toLowerCase()}`, FormPlaceholderScreen])),
