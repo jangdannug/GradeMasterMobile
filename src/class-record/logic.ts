@@ -295,7 +295,7 @@ export interface DescriptorRow {
   color: string;
 }
 
-/** The sheet shows the server's final grade; this client lookup exists for reference and tests */
+/** The sheet's Final Grade: the first transmutation row containing the Initial Grade, or null when none does */
 export function lookupFinalGrade(ig: number, rows: TransmutationRow[]): number | null {
   for (const row of rows) {
     if (!Number.isNaN(row.minInitial) && !Number.isNaN(row.maxInitial) && ig >= row.minInitial && ig <= row.maxInitial)

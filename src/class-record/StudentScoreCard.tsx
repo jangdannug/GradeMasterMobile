@@ -11,9 +11,11 @@ import {
   initialGrade,
   isScoreOverMax,
   lookupDescriptor,
+  lookupFinalGrade,
   NameSegment,
   splitNameByTokens,
   StudentValidation,
+  TransmutationRow,
 } from './logic';
 import ScoreEntry from './ScoreEntry';
 
@@ -27,7 +29,7 @@ interface Props {
   itemWeights: Record<string, number>;
   /** This student's draft scores (a new object whenever one of them changes) */
   scores: Record<string, number> | undefined;
-  finalGrade: number | null;
+  transmutationRows: TransmutationRow[];
   descriptorRows: DescriptorRow[];
   validation: StudentValidation | undefined;
   canEnter: boolean;
@@ -44,7 +46,9 @@ function StudentScoreCard(p: Props) {
 
   const segments: NameSegment[] = useMemo(() => splitNameByTokens(p.name, p.tokens), [p.name, p.tokens]);
   const ig = initialGrade(p.enrollmentId, p.components, own, p.highest);
-  const descriptor = p.finalGrade !== null ? lookupDescriptor(p.finalGrade, p.descriptorRows) : null;
+  // Computed from the live Initial Grade, so it updates while typing, before saving
+  const finalGrade = lookupFinalGrade(ig, p.transmutationRows);
+  const descriptor = finalGrade !== null ? lookupDescriptor(finalGrade, p.descriptorRows) : null;
   const descriptorTint = descriptor ? descriptorColor(descriptor.color, t.isDark) : null;
 
   return (
@@ -107,10 +111,10 @@ function StudentScoreCard(p: Props) {
 
       <View style={[styles.summary, { backgroundColor: t.background, borderColor: t.border }]}>
         <Stat label="Initial Grade" value={formatGrade(ig)} />
-        <Stat label="Final Grade" value={formatGrade(p.finalGrade, 0)} strong />
-        <View style={styles.stat}>
+        <Stat label="Final Grade" value={formatGrade(finalGrade, 0)} strong />
+        <View style={styles.descriptorStat}>
           <Text style={[styles.statLabel, { color: t.muted }]}>Descriptor</Text>
-          <Text style={[styles.statValue, { color: descriptorTint ?? t.muted }]} numberOfLines={1}>
+          <Text style={[styles.statValue, { color: descriptorTint ?? t.muted }]}>
             {descriptor?.label ?? '—'}
           </Text>
         </View>
@@ -159,6 +163,8 @@ const styles = StyleSheet.create({
   miniValue: { fontSize: 14, fontWeight: '800', marginTop: 1 },
   summary: { flexDirection: 'row', gap: 8, borderWidth: 1, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10 },
   stat: { flex: 1 },
+  // Wider than the number stats, and the label wraps instead of truncating ("Did Not Meet Expectations")
+  descriptorStat: { flex: 2 },
   statLabel: { fontSize: 11, fontWeight: '600' },
   statValue: { fontSize: 15, fontWeight: '800', marginTop: 1 },
 });
