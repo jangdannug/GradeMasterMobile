@@ -118,6 +118,7 @@ export default function DistrictsTab() {
         data={districts}
         keyExtractor={(d) => d.districtId}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.primary} />}
         ListHeaderComponent={
           <TabHeader icon="flag" title="Districts" addLabel="Add District" onAdd={openAdd} />

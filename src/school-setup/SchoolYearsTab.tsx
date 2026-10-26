@@ -171,6 +171,7 @@ export default function SchoolYearsTab() {
         data={schoolYears}
         keyExtractor={(sy) => sy.id}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
         extraData={expandedId}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.primary} />}
         ListHeaderComponent={

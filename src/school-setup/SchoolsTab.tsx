@@ -279,6 +279,7 @@ export default function SchoolsTab() {
         data={schools}
         keyExtractor={(s) => s.schoolId}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.primary} />}
         ListHeaderComponent={<TabHeader icon="school" title="Schools" addLabel="Add School" onAdd={openAdd} />}
         ListEmptyComponent={
