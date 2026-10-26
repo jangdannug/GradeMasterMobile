@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
-import { apiErrorMessage, initializeApi } from '../api';
+import { apiErrorMessage, initializeApi, setUnauthorizedHandler } from '../api';
 import { authApi } from '../api/auth';
 import { DEFAULT_THEME, normalizeTheme, type ThemeId } from '../theme/themes';
 import { readUserTheme, saveUserTheme } from '../theme/themeStorage';
@@ -335,3 +335,8 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// An expired or revoked token (the demo session has no refresh token) would otherwise leave every list silently empty
+setUnauthorizedHandler(() => {
+  if (useAuthStore.getState().isLoggedIn) void useAuthStore.getState().logout();
+});

@@ -147,7 +147,7 @@ export default function GradingSheetScreen() {
         highest={g.highest}
         itemWeights={g.itemWeights}
         scores={g.draft[item.enrollmentId]}
-        finalGrade={item.finalGrade}
+        transmutationRows={g.transmutationRows}
         descriptorRows={g.descriptorRows}
         validation={g.validations.get(item.enrollmentId)}
         canEnter={g.canEnter}
@@ -157,7 +157,7 @@ export default function GradingSheetScreen() {
         onNext={onNext}
       />
     ),
-    [tokens, g.components, g.highest, g.itemWeights, g.draft, g.descriptorRows, g.validations, g.canEnter, g.version, registerRef, g.setScore, onNext]
+    [tokens, g.components, g.highest, g.itemWeights, g.draft, g.descriptorRows, g.transmutationRows, g.validations, g.canEnter, g.version, registerRef, g.setScore, onNext]
   );
 
   const header = (

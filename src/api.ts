@@ -3,6 +3,12 @@ import * as SecureStore from 'expo-secure-store';
 
 let api: AxiosInstance | null = null;
 
+// Called when the API rejects the stored session (expired or revoked token); authStore signs the user out
+let onUnauthorized: (() => void) | null = null;
+export const setUnauthorizedHandler = (handler: () => void) => {
+  onUnauthorized = handler;
+};
+
 // Keys written by authStore on login
 const ACCESS_TOKEN_KEY = 'gm_user';
 const SCHOOL_KEY = 'gm_auth_school';
@@ -31,6 +37,12 @@ export const initializeApi = () => {
       if (schoolId) config.headers['x-school-id'] = schoolId;
     }
     return config;
+  });
+
+  api.interceptors.response.use(undefined, (error) => {
+    // Auth calls (login, change password, logout) report their own 401s
+    if (error?.response?.status === 401 && !String(error.config?.url ?? '').includes('/api/Auth/')) onUnauthorized?.();
+    return Promise.reject(error);
   });
 
   return api;

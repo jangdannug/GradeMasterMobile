@@ -7,6 +7,7 @@ import { gradeSubmissionApi, ClassRecordRow, SectionReadiness } from '../api/gra
 import { gradingDescriptorsApi } from '../api/gradingDescriptors';
 import { GradingPeriod } from '../api/gradingPeriods';
 import { gradingSchemesApi } from '../api/gradingSchemes';
+import { transmutationApi } from '../api/transmutation';
 import { SetupSchoolYear } from '../api/schoolYears';
 import { sectionsApi } from '../api/sections';
 import { todayString } from '../school-setup/dates';
@@ -17,6 +18,7 @@ import {
   changedEntries,
   computeStudentValidation,
   DescriptorRow,
+  TransmutationRow,
   HighestScoreMap,
   isPeriodOpen,
   parseScoreInput,
@@ -238,6 +240,23 @@ export function useGradingSheet(params: {
     [descriptorQuery.data]
   );
 
+  // The scheme's transmutation table turns the live Initial Grade into the Final Grade as the teacher types
+  const transmutationQuery = useQuery({
+    queryKey: academicKeys.transmutationEntries(scheme?.transmutationTableId ?? ''),
+    queryFn: () => transmutationApi.entries(scheme!.transmutationTableId),
+    enabled: !!scheme?.transmutationTableId,
+    ...REFERENCE,
+  });
+  const transmutationRows = useMemo<TransmutationRow[]>(
+    () =>
+      (transmutationQuery.data ?? []).map((e) => ({
+        minInitial: e.initialGrade,
+        maxInitial: e.maxInitialGrade,
+        transmuted: e.transmutedGrade,
+      })),
+    [transmutationQuery.data]
+  );
+
   // ---- Gates ----------------------------------------------------------------------------------
   const today = todayString();
   const syActive = !!schoolYear && schoolYear.isActive && !schoolYear.isDraft;
@@ -354,6 +373,7 @@ export function useGradingSheet(params: {
     highest,
     itemWeights,
     descriptorRows,
+    transmutationRows,
     scheme,
     draft,
     version,

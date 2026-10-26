@@ -88,6 +88,37 @@ describe('grade math', () => {
     assert.equal(result.valid, false);
   });
 
+  describe('lookupFinalGrade', () => {
+    const rows = [
+      { minInitial: 0, maxInitial: 59.99, transmuted: 60 },
+      { minInitial: 60, maxInitial: 79.99, transmuted: 75 },
+      { minInitial: 80, maxInitial: 100, transmuted: 90 },
+    ];
+
+    it('returns the transmuted grade of the row containing the initial grade', () => {
+      assert.equal(lookupFinalGrade(30, rows), 60);
+      assert.equal(lookupFinalGrade(70.5, rows), 75);
+    });
+
+    it('includes both ends of a range', () => {
+      assert.equal(lookupFinalGrade(0, rows), 60);
+      assert.equal(lookupFinalGrade(59.99, rows), 60);
+      assert.equal(lookupFinalGrade(60, rows), 75);
+      assert.equal(lookupFinalGrade(80, rows), 90);
+      assert.equal(lookupFinalGrade(100, rows), 90);
+    });
+
+    it('returns null when no row matches', () => {
+      assert.equal(lookupFinalGrade(100.01, rows), null);
+      assert.equal(lookupFinalGrade(-1, rows), null);
+      assert.equal(lookupFinalGrade(59.995, rows), null);
+    });
+
+    it('returns null for an empty table', () => {
+      assert.equal(lookupFinalGrade(80, []), null);
+    });
+  });
+
   it('looks up the final grade and descriptor by range (first match wins)', () => {
     const rows = [
       { minInitial: 0, maxInitial: 59.99, transmuted: 60 },
