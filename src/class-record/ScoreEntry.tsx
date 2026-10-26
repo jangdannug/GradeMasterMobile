@@ -71,5 +71,5 @@ const styles = StyleSheet.create({
   labels: { flex: 1 },
   label: { fontSize: 14.5, fontWeight: '700' },
   max: { fontSize: 12, fontWeight: '500' },
-  input: { width: 92, height: 36, textAlign: 'right', borderWidth: 1.5, borderRadius: 9, borderStyle: 'solid', paddingHorizontal: 10, fontSize: 15, fontWeight: '600' },
+  input: { width: 92, height: 36, textAlign: 'right', paddingVertical: 0, textAlignVertical: 'center', borderWidth: 1.5, borderRadius: 9, borderStyle: 'solid', paddingHorizontal: 10, fontSize: 15, fontWeight: '600' },
 });

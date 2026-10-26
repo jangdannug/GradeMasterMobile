@@ -1,7 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 let api: AxiosInstance | null = null;
+
+// Development default: "localhost" is the emulator itself on Android, where 10.0.2.2 is the host machine
+// (a physical device needs EXPO_PUBLIC_API_URL set to the machine's LAN address)
+const DEV_API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5185' : 'http://localhost:5185';
 
 // Called when the API rejects the stored session (expired or revoked token); authStore signs the user out
 let onUnauthorized: (() => void) | null = null;
@@ -15,14 +20,18 @@ const SCHOOL_KEY = 'gm_auth_school';
 
 /**
  * Centralized Axios instance for the GradeMaster API.
- * Base URL is host only (endpoints include /api); override with EXPO_PUBLIC_API_URL.
+ * Base URL is host only (endpoints include /api) and is baked into each build via EXPO_PUBLIC_API_URL
+ * (see eas.json); only development builds fall back to the local machine.
  * The stored access token and school id are attached to every request.
  */
 export const initializeApi = () => {
   if (api) return api;
 
+  const baseURL = process.env.EXPO_PUBLIC_API_URL || (__DEV__ ? DEV_API_URL : '');
+  if (!baseURL) throw new Error('EXPO_PUBLIC_API_URL is not set for this build. Set it in the EAS build profile (eas.json).');
+
   api = axios.create({
-    baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5185',
+    baseURL,
     timeout: 30000,
     headers: { 'Content-Type': 'application/json' },
   });

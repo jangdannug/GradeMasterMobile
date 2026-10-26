@@ -1,4 +1,23 @@
-import { initializeApi, unwrap } from '../api';
+import { apiErrorMessage, initializeApi, unwrap } from '../api';
+
+/** The school picked at runtime before login: what the API needs in x-school-id */
+export interface SelectedSchool {
+  schoolId: string;
+  name: string;
+  code: string;
+}
+
+// Same pattern as the web school code (the URL segment, e.g. /tis/login)
+export const SCHOOL_CODE_PATTERN = /^[a-zA-Z0-9]{2,20}$/;
+
+export class SchoolLookupError extends Error {
+  /** 'network' is worth a retry; the others need a different code */
+  kind: 'invalid' | 'not-found' | 'rate-limited' | 'network' | 'unknown';
+  constructor(kind: SchoolLookupError['kind'], message: string) {
+    super(message);
+    this.kind = kind;
+  }
+}
 
 const BASE = '/api/School';
 
@@ -87,6 +106,27 @@ export const mapSchool = (raw: any): School => ({
 });
 
 export const schoolsApi = {
+  /** Public, rate-limited lookup used by the school code screen (GET /api/School/code/{code}) */
+  getByCode: async (rawCode: string): Promise<SelectedSchool> => {
+    const code = rawCode.trim();
+    if (!SCHOOL_CODE_PATTERN.test(code)) {
+      throw new SchoolLookupError('invalid', 'Enter 2-20 letters or numbers');
+    }
+    try {
+      const res = await initializeApi().get(`${BASE}/code/${encodeURIComponent(code)}`);
+      const data = unwrap<any>(res.data);
+      if (!data?.schoolId) throw new SchoolLookupError('not-found', 'School not found');
+      return { schoolId: data.schoolId, name: data.name ?? '', code: data.code ?? code };
+    } catch (e: any) {
+      if (e instanceof SchoolLookupError) throw e;
+      const status = e?.response?.status;
+      if (status === 404) throw new SchoolLookupError('not-found', 'School not found');
+      if (status === 429) throw new SchoolLookupError('rate-limited', 'Too many attempts, please try again shortly');
+      if (!e?.response) throw new SchoolLookupError('network', "Can't reach the server");
+      throw new SchoolLookupError('unknown', apiErrorMessage(e, 'Could not look up the school'));
+    }
+  },
+
   list: async (): Promise<School[]> => {
     const res = await initializeApi().get(BASE);
     const data = unwrap<any[]>(res.data);

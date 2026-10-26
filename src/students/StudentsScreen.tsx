@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -6,7 +6,6 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -15,18 +14,20 @@ import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-q
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiErrorMessage } from '../api';
 import { formatStudentName, StudentRecord, studentsApi } from '../api/students';
-import { confirmDestructive, DashedEmpty, showRowMenu } from '../components/forms';
+import { confirmDestructive, DashedEmpty, SearchInput, showRowMenu } from '../components/forms';
 import { useDashboardTheme } from '../dashboard/theme';
 import { formatDate } from '../school-setup/dates';
 import { MoreButton } from '../school-setup/SetupParts';
+import { toMenuRole } from '../navigation/menu';
 import { useAuthStore } from '../stores/authStore';
 import StudentDetailSheet from './StudentDetailSheet';
 import StudentFormSheet, { StudentFormTarget } from './StudentFormSheet';
 
 const PAGE_SIZE = 20;
 
-/** Only school heads and admins manage students; teachers can list and view */
-export const useCanManageStudents = () => useAuthStore((s) => s.user?.role !== 'Teacher');
+
+// Same rule as the menu: the web lets every signed-in school user register students and leaves access to the API
+export const useCanManageStudents = () => useAuthStore((s) => toMenuRole(s.user?.role) !== 'Teacher');
 
 /** Teacher tab: the same list, view only */
 export default function StudentsScreen() {
@@ -47,11 +48,9 @@ export function StudentRegistration({
   const t = useDashboardTheme();
   const queryClient = useQueryClient();
 
-  // The search is applied on submit, so typing costs no requests
+  // Live, debounced search (the shared SearchInput is uncontrolled, which keeps typing safe on Fabric)
   const [term, setTerm] = useState('');
-  const typed = useRef('');
-  const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
-  const [hasText, setHasText] = useState(false);
+  const onSearch = useCallback((value: string) => setTerm(value), []);
 
   const [detail, setDetail] = useState<StudentRecord | null>(null);
   const [formTarget, setFormTarget] = useState<StudentFormTarget | null>(null);
@@ -92,15 +91,6 @@ export function StudentRegistration({
     },
     onError: (e) => Alert.alert('Could not remove student', apiErrorMessage(e)),
   });
-
-  const submitSearch = () => setTerm(typed.current.trim());
-
-  const clearSearch = () => {
-    inputRef.current?.clear();
-    typed.current = '';
-    setHasText(false);
-    setTerm('');
-  };
 
   const askRemove = (student: StudentRecord) =>
     confirmDestructive(
@@ -145,38 +135,9 @@ export function StudentRegistration({
               )}
             </View>
 
-            <View style={[styles.search, { backgroundColor: t.card, borderColor: t.border }]}>
-              <Ionicons name="search" size={18} color={t.muted} />
-              {/* Uncontrolled on purpose (a controlled field re-rendered with the list crashes Fabric) */}
-              <TextInput
-                ref={inputRef}
-                style={[styles.searchInput, { color: t.foreground }]}
-                placeholder="Search LRN or name..."
-                placeholderTextColor="#94A3B8"
-                onChangeText={(v) => {
-                  typed.current = v;
-                  setHasText(v.length > 0);
-                }}
-                onSubmitEditing={submitSearch}
-                returnKeyType="search"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity style={{ opacity: hasText ? 1 : 0.35 }} onPress={submitSearch} disabled={!hasText}>
-                <Text style={[styles.searchButton, { color: t.primary }]}>Search</Text>
-              </TouchableOpacity>
+            <View style={canManage ? { marginTop: 12 } : undefined}>
+              <SearchInput placeholder="Search LRN or name..." onSearch={onSearch} />
             </View>
-
-            {!!term && (
-              <View style={styles.applied}>
-                <Text style={[styles.appliedText, { color: t.muted }]} numberOfLines={1}>
-                  Showing results for “{term}”
-                </Text>
-                <TouchableOpacity onPress={clearSearch}>
-                  <Text style={[styles.clear, { color: t.primary }]}>Clear</Text>
-                </TouchableOpacity>
-              </View>
-            )}
 
             <Text style={[styles.count, { color: t.muted }]}>
               {total} student{total === 1 ? '' : 's'}
