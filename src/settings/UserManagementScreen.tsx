@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -6,7 +6,6 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -15,7 +14,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-q
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiErrorMessage } from '../api';
 import { fullName, UserProfile, userManagementApi } from '../api/userProfiles';
-import { confirmDestructive, DashedEmpty, showRowMenu } from '../components/forms';
+import { confirmDestructive, DashedEmpty, SearchInput, showRowMenu } from '../components/forms';
 import { DashboardTheme, useDashboardTheme } from '../dashboard/theme';
 import { formatDate } from '../school-setup/dates';
 import { MoreButton } from '../school-setup/SetupParts';
@@ -50,9 +49,7 @@ export default function UserManagementScreen() {
 
   // Search applies on submit, so typing costs no requests
   const [term, setTerm] = useState('');
-  const typed = useRef('');
-  const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
-  const [hasText, setHasText] = useState(false);
+  const onSearch = useCallback((value: string) => setTerm(value), []);
   const [formTarget, setFormTarget] = useState<UserFormTarget | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -76,14 +73,6 @@ export default function UserManagementScreen() {
     },
     onError: (e) => Alert.alert('Could not delete user', apiErrorMessage(e)),
   });
-
-  const submitSearch = () => setTerm(typed.current.trim());
-  const clearSearch = () => {
-    inputRef.current?.clear();
-    typed.current = '';
-    setHasText(false);
-    setTerm('');
-  };
 
   const isSelf = (u: UserProfile) => !!me?.id && u.userId === me.id;
 
@@ -137,37 +126,7 @@ export default function UserManagementScreen() {
               </View>
             )}
 
-            <View style={[styles.search, { backgroundColor: t.card, borderColor: t.border }]}>
-              <Ionicons name="search" size={18} color={t.muted} />
-              {/* Uncontrolled on purpose: a controlled field re-rendered with the list crashes Fabric */}
-              <TextInput
-                ref={inputRef}
-                style={[styles.searchInput, { color: t.foreground }]}
-                placeholder="Search name or email..."
-                placeholderTextColor={t.muted}
-                onChangeText={(v) => {
-                  typed.current = v;
-                  setHasText(v.length > 0);
-                }}
-                onSubmitEditing={submitSearch}
-                returnKeyType="search"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity style={{ opacity: hasText ? 1 : 0.35 }} onPress={submitSearch} disabled={!hasText}>
-                <Text style={[styles.searchButton, { color: t.primary }]}>Search</Text>
-              </TouchableOpacity>
-            </View>
-            {!!term && (
-              <View style={styles.applied}>
-                <Text style={[styles.appliedText, { color: t.muted }]} numberOfLines={1}>
-                  Showing results for “{term}”
-                </Text>
-                <TouchableOpacity onPress={clearSearch}>
-                  <Text style={[styles.clear, { color: t.primary }]}>Clear</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <SearchInput placeholder="Search name or email..." onSearch={onSearch} />
           </View>
         }
         ListEmptyComponent={

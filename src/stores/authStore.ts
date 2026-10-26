@@ -3,8 +3,12 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import { apiErrorMessage, initializeApi, setUnauthorizedHandler } from '../api';
 import { authApi } from '../api/auth';
+import { schoolsApi } from '../api/schools';
+import { queryClient } from '../queryClient';
 import { DEFAULT_THEME, normalizeTheme, type ThemeId } from '../theme/themes';
 import { readUserTheme, saveUserTheme } from '../theme/themeStorage';
+import { secureStorage } from './secureStorage';
+import { useSchoolStore, whenSchoolHydrated } from './schoolStore';
 
 type UserRole = 'Teacher' | 'SchoolHead' | 'Admin' | '';
 
@@ -47,16 +51,25 @@ interface AuthState {
   clearAuth: () => void;
 }
 // Dev/test sign-in, same as the web "Demo Account": exchanges the built-in test key
-// for a token bound to the seeded school user (POST /api/Auth/jwt, raw JWT, no refresh token)
-const DEMO_LOGIN = {
-  testApiKey: 'gmaster01',
-  userId: '03131c42-9b7d-49f1-a13b-019f849b16e6',
-  districtId: 'dac08746-30c3-4ef3-86e1-019f849b1b12',
-  schoolId: 'cb56d78e-b8c7-47c3-b145-019f849b1b13',
-};
+// for a token bound to the seeded school user (POST /api/Auth/jwt, raw JWT, no refresh token).
+// Development builds only: __DEV__ is a constant false in production, so the key is stripped from the bundle
+const DEMO_LOGIN = __DEV__
+  ? {
+      testApiKey: 'gmaster01',
+      userId: '03131c42-9b7d-49f1-a13b-019f849b16e6',
+      districtId: 'dac08746-30c3-4ef3-86e1-019f849b1b12',
+      schoolId: 'cb56d78e-b8c7-47c3-b145-019f849b1b13',
+      code: 'TIS',
+    }
+  : null;
 const DEMO_EMAIL = 'demo@example.com';
 
-const SCHOOL_ID = process.env.EXPO_PUBLIC_SCHOOL_ID || 'cb56d78e-b8c7-47c3-b145-019f849b1b13';
+// The school chosen on the school code screen; every authenticated call is scoped to it
+function requireSchool() {
+  const school = useSchoolStore.getState().school;
+  if (!school) throw new Error('Select your school before signing in.');
+  return school;
+}
 
 interface JwtPayload {
   sub?: string;
@@ -78,6 +91,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 
 // The token only carries a role claim for super admins; everyone else is treated as a teacher
 function userFromToken(token: string, fallbackEmail: string): User {
+  const school = useSchoolStore.getState().school;
   const payload = decodeJwtPayload(token);
   const email = typeof payload?.email === 'string' ? payload.email : fallbackEmail;
   const roleClaim = Object.entries(payload ?? {}).find(([key]) => key === 'role' || key.endsWith('/role'))?.[1];
@@ -87,8 +101,8 @@ function userFromToken(token: string, fallbackEmail: string): User {
     email,
     name: typeof payload?.name === 'string' ? payload.name : email.split('@')[0] || null,
     role: isSuperAdmin ? 'Admin' : 'Teacher',
-    schoolId: SCHOOL_ID,
-    schoolName: null,
+    schoolId: school?.schoolId ?? null,
+    schoolName: school?.name || null,
   };
 }
 
@@ -97,12 +111,6 @@ const restoreUserTheme = async (userId: string | undefined) => {
   if (!userId) return;
   const own = await readUserTheme(userId);
   if (own) useAuthStore.setState({ theme: own });
-};
-
-const secureStorage = {
-  getItem: (name: string) => SecureStore.getItemAsync(name),
-  setItem: (name: string, value: string) => SecureStore.setItemAsync(name, value),
-  removeItem: (name: string) => SecureStore.deleteItemAsync(name),
 };
 
 export const useAuthStore = create<AuthState>()(
@@ -119,11 +127,12 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true });
         try {
+          const school = requireSchool();
           const api = initializeApi();
           const response = await api.post(
             '/api/Auth/login',
             { email, password },
-            { headers: { 'x-school-id': SCHOOL_ID } }
+            { headers: { 'x-school-id': school.schoolId } }
           );
 
           // Bad credentials come back as 401 with errors[], or with data.accessToken missing
@@ -140,12 +149,12 @@ export const useAuthStore = create<AuthState>()(
           const { accessToken, refreshToken: rt } = data;
           await SecureStore.setItemAsync(STORAGE_KEYS.USER, accessToken);
           await SecureStore.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, rt ?? '');
-          await SecureStore.setItemAsync(STORAGE_KEYS.AUTH_SCHOOL, SCHOOL_ID);
+          await SecureStore.setItemAsync(STORAGE_KEYS.AUTH_SCHOOL, school.schoolId);
 
           set({
             user: userFromToken(accessToken, email),
             refreshToken: rt,
-            authSchool: SCHOOL_ID,
+            authSchool: school.schoolId,
             isLoggedIn: true,
             isLoading: false,
           });
@@ -158,9 +167,16 @@ export const useAuthStore = create<AuthState>()(
       },
       
       loginAsDemo: async () => {
+        if (!DEMO_LOGIN) throw new Error('Demo sign-in is only available in development builds.');
         set({ isLoading: true });
         try {
-          const response = await initializeApi().post('/api/Auth/jwt', DEMO_LOGIN, {
+          // Use the real name and code when the backend knows them; the demo school is selected either way
+          const demoSchool = await schoolsApi
+            .getByCode(DEMO_LOGIN.code)
+            .catch(() => ({ schoolId: DEMO_LOGIN.schoolId, name: 'Demo School', code: DEMO_LOGIN.code }));
+          useSchoolStore.getState().setSchool(demoSchool);
+          const { code: _code, ...credentials } = DEMO_LOGIN;
+          const response = await initializeApi().post('/api/Auth/jwt', credentials, {
             responseType: 'text',
             transformResponse: [(data) => data],
           });
@@ -188,24 +204,25 @@ export const useAuthStore = create<AuthState>()(
       changePassword: async (currentPassword: string, newPassword: string, confirmPassword: string) => {
         const passwordChangeToken = get().passwordChangeToken;
         if (!passwordChangeToken) throw new Error('Your session expired. Please sign in again.');
+        const school = requireSchool();
         set({ isLoading: true });
         try {
           const response = await initializeApi().post(
             '/api/Auth/change-password',
             { currentPassword, newPassword, confirmPassword },
-            { headers: { Authorization: `Bearer ${passwordChangeToken}`, 'x-school-id': SCHOOL_ID } }
+            { headers: { Authorization: `Bearer ${passwordChangeToken}`, 'x-school-id': school.schoolId } }
           );
           const data = response.data?.data;
           if (!data?.accessToken) throw new Error('Password change failed. Please try again.');
 
           await SecureStore.setItemAsync(STORAGE_KEYS.USER, data.accessToken);
           await SecureStore.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken ?? '');
-          await SecureStore.setItemAsync(STORAGE_KEYS.AUTH_SCHOOL, SCHOOL_ID);
+          await SecureStore.setItemAsync(STORAGE_KEYS.AUTH_SCHOOL, school.schoolId);
 
           set({
             user: userFromToken(data.accessToken, ''),
             refreshToken: data.refreshToken,
-            authSchool: SCHOOL_ID,
+            authSchool: school.schoolId,
             passwordChangeToken: null,
             isLoggedIn: true,
           });
@@ -220,6 +237,7 @@ export const useAuthStore = create<AuthState>()(
       // Voluntary change while signed in: the same endpoint, called with the current access token.
       // The user and login state stay as they are; rotated tokens, when returned, replace the stored ones.
       changePasswordInSession: async (currentPassword: string, newPassword: string, confirmPassword: string) => {
+        requireSchool();
         const tokens = await authApi.changePassword(currentPassword, newPassword, confirmPassword);
         if (!tokens) return;
         await SecureStore.setItemAsync(STORAGE_KEYS.USER, tokens.accessToken);
@@ -273,6 +291,8 @@ export const useAuthStore = create<AuthState>()(
         await SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN);
         await SecureStore.deleteItemAsync(STORAGE_KEYS.AUTH_SCHOOL);
         
+        // The selected school stays, so the next sign-in goes straight to that school's login
+        queryClient.clear();
         set({
           user: null,
           refreshToken: null,
@@ -285,6 +305,8 @@ export const useAuthStore = create<AuthState>()(
       restoreSession: async () => {
         set({ isLoading: true });
         try {
+          // The stored school fills in for a missing gm_auth_school and names the restored user's school
+          await whenSchoolHydrated();
           const [token, refreshToken, authSchool] = await Promise.all([
             SecureStore.getItemAsync(STORAGE_KEYS.USER),
             SecureStore.getItemAsync(STORAGE_KEYS.REFRESH_TOKEN),
@@ -293,10 +315,13 @@ export const useAuthStore = create<AuthState>()(
           
           const exp = token ? decodeJwtPayload(token)?.exp : undefined;
           if (token && (!exp || exp * 1000 > Date.now())) {
-            const restored = userFromToken(token, '');
+            // Prefer the saved profile when it belongs to this token's user
+            const fromToken = userFromToken(token, '');
+            const saved = (get() as AuthState & { savedUser?: User | null }).savedUser;
+            const restored = saved && saved.id === fromToken.id ? { ...fromToken, ...saved } : fromToken;
             // Demo sessions are the only ones without a refresh token
             if (!refreshToken) Object.assign(restored, { name: 'Demo Account', email: DEMO_EMAIL, role: 'Admin' });
-            get().loginWithToken(token, refreshToken || '', restored, authSchool || '');
+            get().loginWithToken(token, refreshToken || '', restored, authSchool || useSchoolStore.getState().school?.schoolId || '');
           }
         } catch (error) {
           console.error('Failed to restore session:', error);
@@ -324,14 +349,16 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'grademaster-auth',
       storage: createJSONStorage(() => secureStorage),
+      // The token carries no name or email, so the signed-in user is kept to show who is signed in after a restart
       partialize: (state) => ({
         theme: state.theme,
+        user: state.user,
       }),
       // Older installs stored 'light' | 'dark' | null
-      merge: (persisted, current) => ({
-        ...current,
-        theme: normalizeTheme((persisted as { theme?: string | null } | undefined)?.theme),
-      }),
+      merge: (persisted, current) => {
+        const saved = persisted as { theme?: string | null; user?: User | null } | undefined;
+        return { ...current, theme: normalizeTheme(saved?.theme), savedUser: saved?.user ?? null };
+      },
     }
   )
 );

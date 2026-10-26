@@ -30,7 +30,6 @@ import { useAuthStore } from '../stores/authStore';
 export type UserFormTarget = { kind: 'create' } | { kind: 'edit'; user: UserProfile };
 
 const LONG_CACHE = { staleTime: 60 * 60 * 1000, gcTime: 2 * 60 * 60 * 1000, refetchOnWindowFocus: false } as const;
-const SCHOOL_FALLBACK = process.env.EXPO_PUBLIC_SCHOOL_ID || '';
 
 type Errors = Partial<Record<'firstName' | 'lastName' | 'email' | 'employeeNumber' | 'hireDate' | 'positionId' | 'schoolId', string>>;
 
@@ -77,7 +76,7 @@ function UserFormBody({ target, onClose }: { target: UserFormTarget; onClose: ()
   const t = useDashboardTheme();
   const queryClient = useQueryClient();
   const authUser = useAuthStore((s) => s.user);
-  const defaultSchool = authUser?.schoolId || SCHOOL_FALLBACK;
+  const defaultSchool = authUser?.schoolId || '';
   const [form, setForm] = useState<UserProfileInput>(() => formFor(target, defaultSchool));
   const [errors, setErrors] = useState<Errors>({});
 

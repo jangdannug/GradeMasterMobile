@@ -79,8 +79,13 @@ export const MENU: MenuItem[] = [
 
 export const INITIAL_ROUTE = 'dashboard';
 
-export const toMenuRole = (role: string | undefined | null): MenuRole =>
-  role === 'SchoolHead' || role === 'Admin' ? role : 'Teacher';
+/**
+ * The web shows every menu item to every signed-in school user and leaves access to the API, so mobile does the
+ * same. The token carries no role (only super admins get a claim), so reading one here hid Setup, Teacher Assignment
+ * and Administration from school admins, e.g. admin@tnhs.test. The visibility matrix above stays for when the
+ * backend exposes real roles.
+ */
+export const toMenuRole = (role: string | undefined | null): MenuRole => (role ? 'Admin' : 'Teacher');
 
 export interface VisibleItem extends Omit<MenuItem, 'children'> {
   children?: MenuChild[];

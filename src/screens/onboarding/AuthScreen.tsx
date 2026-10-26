@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthBackground from '../../components/AuthBackground';
 import { useAuthStore } from '../../stores/authStore';
+import { useSchoolStore } from '../../stores/schoolStore';
 import ChangePasswordScreen from './ChangePasswordScreen';
 
 // Palette mirrors GradeMasterFrontend (slate-900 / primary-950 / blue-300 / indigo-300)
@@ -39,6 +40,8 @@ type FieldErrors = { email?: string; password?: string };
 
 export default function AuthScreen() {
   const { isLoading, login, loginAsDemo, passwordChangeToken } = useAuthStore();
+  const school = useSchoolStore((s) => s.school);
+  const clearSchool = useSchoolStore((s) => s.clearSchool);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -115,6 +118,22 @@ export default function AuthScreen() {
                 <Text style={styles.taglineAccent}>Simplified</Text> School Administration
               </Text>
             </Animated.View>
+
+            {/* The school this sign-in is for, with a way back to the code screen */}
+            {!!school && (
+              <View style={styles.schoolBox}>
+                <View style={styles.schoolRow}>
+                  <Ionicons name="business-outline" size={16} color={colors.blue300} />
+                  <Text style={styles.schoolName} numberOfLines={1}>
+                    {school.name || 'Your school'}
+                  </Text>
+                  {!!school.code && <Text style={styles.schoolCode}>{school.code.toUpperCase()}</Text>}
+                </View>
+                <TouchableOpacity onPress={clearSchool} disabled={isLoading} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.changeSchool}>Not your school? Change school</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Glass card */}
             <Animated.View style={[styles.card, slideUp]}>
@@ -298,6 +317,21 @@ const styles = StyleSheet.create({
   },
   tagline: { marginTop: 6, fontSize: 14, color: 'rgba(191,219,254,0.8)' },
   taglineAccent: { color: colors.indigo300, fontWeight: '700' },
+
+  schoolBox: { alignItems: 'center', marginBottom: 14, gap: 6 },
+  schoolRow: { flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' },
+  schoolName: { flexShrink: 1, fontSize: 15, fontWeight: '700', color: '#fff' },
+  schoolCode: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.indigo300,
+    borderWidth: 1,
+    borderColor: 'rgba(165,180,252,0.5)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  changeSchool: { fontSize: 12.5, color: colors.blue300, textDecorationLine: 'underline' },
 
   card: {
     width: '100%',
