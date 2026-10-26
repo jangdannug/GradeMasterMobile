@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, confirmDestructive } from '../components/forms';
 import { useDashboardTheme } from '../dashboard/theme';
 import { useAuthStore } from '../stores/authStore';
+import { THEMES } from '../theme/themes';
 import ChangePasswordSheet from './ChangePasswordSheet';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -14,7 +15,7 @@ const ROLE_LABELS: Record<string, string> = { Teacher: 'Teacher', SchoolHead: 'S
 
 export default function SettingsScreen() {
   const t = useDashboardTheme();
-  const { user, setTheme, logout } = useAuthStore();
+  const { user, theme, setTheme, logout } = useAuthStore();
   const [passwordOpen, setPasswordOpen] = useState(false);
 
   const initials =
@@ -28,10 +29,8 @@ export default function SettingsScreen() {
   const askSignOut = () => confirmDestructive('Sign out', 'Sign out of GradeMaster?', () => logout(), 'Sign out');
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={[]}>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={[styles.title, { color: t.primary }]}>Settings</Text>
-
         <View style={[styles.account, { backgroundColor: t.card, borderColor: t.border }]}>
           <View style={[styles.avatar, { backgroundColor: t.primaryTint }]}>
             <Text style={[styles.avatarText, { color: t.primary }]}>{initials}</Text>
@@ -55,11 +54,28 @@ export default function SettingsScreen() {
         </View>
 
         <Group title="Appearance">
-          <View style={styles.row}>
-            <RowIcon name="moon-outline" />
-            <Text style={[styles.rowLabel, { color: t.foreground }]}>Dark mode</Text>
-            <Switch value={t.isDark} onValueChange={(on) => setTheme(on ? 'dark' : 'light')} />
-          </View>
+          {THEMES.map((option, index) => {
+            const selected = option.id === theme;
+            const [page, card, sidebar] = option.swatch;
+            return (
+              <TouchableOpacity
+                key={option.id}
+                style={[styles.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border }]}
+                onPress={() => setTheme(option.id)}
+                activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+              >
+                <View style={[styles.swatch, { borderColor: t.border }]}>
+                  <View style={{ flex: 1, backgroundColor: sidebar }} />
+                  <View style={{ flex: 1, backgroundColor: page }} />
+                  <View style={{ flex: 1, backgroundColor: card }} />
+                </View>
+                <Text style={[styles.rowLabel, { color: t.foreground }]}>{option.label}</Text>
+                {selected && <Ionicons name="checkmark-circle" size={22} color={t.primary} />}
+              </TouchableOpacity>
+            );
+          })}
         </Group>
 
         <Group title="Security">
@@ -125,6 +141,7 @@ const styles = StyleSheet.create({
   groupTitle: { fontSize: 12, fontWeight: '700', marginLeft: 4 },
   group: { borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  swatch: { width: 54, height: 34, flexDirection: 'row', borderRadius: 8, borderWidth: 1, overflow: 'hidden' },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { flex: 1, fontSize: 15.5, fontWeight: '600' },
   version: { textAlign: 'center', fontSize: 12.5 },

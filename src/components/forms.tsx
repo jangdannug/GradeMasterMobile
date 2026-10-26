@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,27 +16,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { useDashboardTheme } from '../dashboard/theme';
+import { useDashboardTheme, type DashboardTheme } from '../dashboard/theme';
 import { formatDate, fromDateString, toDateString } from '../school-setup/dates';
 
-export const theme = {
-  bg: '#F5F7FA',
-  card: '#FFFFFF',
-  primary: '#1E3A5F',
-  accent: '#3B82F6',
-  text: '#1E293B',
-  muted: '#64748B',
-  border: '#E2E8F0',
-  danger: '#DC2626',
-  success: '#059669',
-};
-
 export function Field({ label, error, ...props }: TextInputProps & { label: string; error?: string }) {
+  const t = useDashboardTheme();
+  const styles = useStyles();
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={t.muted}
         {...props}
         style={[styles.input, !!error && styles.inputError, props.style]}
       />
@@ -56,6 +46,7 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -85,6 +76,7 @@ export function PrimaryButton({
   loading?: boolean;
   disabled?: boolean;
 }) {
+  const styles = useStyles();
   return (
     <TouchableOpacity
       style={[styles.button, (disabled || loading) && { opacity: 0.6 }]}
@@ -108,13 +100,15 @@ export function FormModal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const t = useDashboardTheme();
+  const styles = useStyles();
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.modal} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>{title}</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={26} color={theme.muted} />
+            <Ionicons name="close" size={26} color={t.muted} />
           </TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -130,14 +124,15 @@ export function ListHeader({
   subtitle,
   onAdd,
 }: {
-  title: string;
+  title?: string;
   subtitle?: string;
   onAdd?: () => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.listHeader}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.listTitle}>{title}</Text>
+        {!!title && <Text style={styles.listTitle}>{title}</Text>}
         {!!subtitle && <Text style={styles.listSubtitle}>{subtitle}</Text>}
       </View>
       {onAdd && (
@@ -150,9 +145,11 @@ export function ListHeader({
 }
 
 export function EmptyState({ icon, text }: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string }) {
+  const t = useDashboardTheme();
+  const styles = useStyles();
   return (
     <View style={styles.empty}>
-      <Ionicons name={icon} size={40} color="#CBD5E1" />
+      <Ionicons name={icon} size={40} color={t.border} />
       <Text style={styles.emptyText}>{text}</Text>
     </View>
   );
@@ -196,6 +193,7 @@ export function SelectField({
   allowCustom,
   error,
 }: SelectFieldProps) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -229,7 +227,7 @@ export function SelectField({
           disabled && { opacity: 0.5 },
         ]}
       >
-        <Text style={[styles.selectText, { color: shown ? t.foreground : '#94A3B8' }]} numberOfLines={1}>
+        <Text style={[styles.selectText, { color: shown ? t.foreground : t.muted }]} numberOfLines={1}>
           {shown || placeholder}
         </Text>
         <Ionicons name="chevron-down" size={18} color={t.muted} />
@@ -250,7 +248,7 @@ export function SelectField({
             <TextInput
               style={[styles.pickerSearchInput, { color: t.foreground }]}
               placeholder="Search"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={t.muted}
               onChangeText={setQuery}
               autoCorrect={false}
               autoCapitalize="none"
@@ -308,6 +306,7 @@ interface DateFieldProps {
 
 /** Native date picker: a dialog on Android, an inline calendar sheet on iOS. */
 export function DateField({ label, value, onChange, clearable, disabled, error }: DateFieldProps) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Date>(new Date());
@@ -342,7 +341,7 @@ export function DateField({ label, value, onChange, clearable, disabled, error }
           disabled && { opacity: 0.5 },
         ]}
       >
-        <Text style={[styles.selectText, { color: value ? t.foreground : '#94A3B8' }]}>
+        <Text style={[styles.selectText, { color: value ? t.foreground : t.muted }]}>
           {value ? formatDate(value) : 'Select date'}
         </Text>
         <Ionicons name="calendar-outline" size={18} color={t.muted} />
@@ -403,6 +402,7 @@ export const SearchInput = React.memo(function SearchInput({
   placeholder?: string;
   onSearch: (term: string) => void;
 }) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   const [text, setText] = useState('');
   const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
@@ -419,7 +419,7 @@ export const SearchInput = React.memo(function SearchInput({
         ref={inputRef}
         style={[styles.pickerSearchInput, { color: t.foreground }]}
         placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={t.muted}
         onChangeText={setText}
         autoCorrect={false}
         autoCapitalize="none"
@@ -434,7 +434,7 @@ export const SearchInput = React.memo(function SearchInput({
           setText('');
         }}
       >
-        <Ionicons name="close-circle" size={18} color="#94A3B8" />
+        <Ionicons name="close-circle" size={18} color={t.muted} />
       </TouchableOpacity>
     </View>
   );
@@ -458,6 +458,7 @@ export function MultiSelectField({
   placeholder = 'Select...',
   disabled,
 }: MultiSelectFieldProps) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -485,7 +486,7 @@ export function MultiSelectField({
         onPress={() => setOpen(true)}
         style={[styles.input, styles.selectBox, { backgroundColor: t.card, borderColor: t.border }, disabled && { opacity: 0.5 }]}
       >
-        <Text style={[styles.selectText, { color: shown ? t.foreground : '#94A3B8' }]} numberOfLines={1}>
+        <Text style={[styles.selectText, { color: shown ? t.foreground : t.muted }]} numberOfLines={1}>
           {shown || placeholder}
         </Text>
         <Ionicons name="chevron-down" size={18} color={t.muted} />
@@ -504,7 +505,7 @@ export function MultiSelectField({
             <TextInput
               style={[styles.pickerSearchInput, { color: t.foreground }]}
               placeholder="Search"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={t.muted}
               onChangeText={setQuery}
               autoCorrect={false}
               autoCapitalize="none"
@@ -555,6 +556,7 @@ export function CheckRow({
   onChange: (checked: boolean) => void;
   disabled?: boolean;
 }) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   return (
     <TouchableOpacity
@@ -570,6 +572,7 @@ export function CheckRow({
 }
 
 export function SectionHeader({ title }: { title: string }) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   return <Text style={[styles.sectionHeader, { color: t.primary }]}>{title}</Text>;
 }
@@ -577,6 +580,7 @@ export function SectionHeader({ title }: { title: string }) {
 export type BadgeTone = 'success' | 'warning' | 'danger' | 'muted' | 'primary';
 
 export function Badge({ label, tone = 'muted', outline }: { label: string; tone?: BadgeTone; outline?: boolean }) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   const palette: Record<BadgeTone, { bg: string; fg: string }> = {
     success: { bg: t.successTint, fg: t.success },
@@ -610,6 +614,7 @@ export function FormActions({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   return (
     <View style={styles.formActions}>
@@ -649,6 +654,7 @@ export function DashedEmpty({
   title: string;
   subtitle?: string;
 }) {
+  const styles = useStyles();
   const t = useDashboardTheme();
   return (
     <View style={[styles.dashed, { borderColor: t.border }]}>
@@ -681,121 +687,127 @@ export function showRowMenu(
   ]);
 }
 
-const styles = StyleSheet.create({
-  field: { marginBottom: 14 },
-  label: { fontSize: 12, fontWeight: '600', color: theme.muted, marginBottom: 6 },
-  input: {
-    height: 46,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: '#fff',
-    fontSize: 15,
-    color: theme.text,
-  },
-  inputError: { borderColor: theme.danger },
-  error: { marginTop: 4, fontSize: 11.5, color: theme.danger },
+const createStyles = (t: DashboardTheme) =>
+  StyleSheet.create({
+    field: { marginBottom: 14 },
+    label: { fontSize: 12, fontWeight: '600', color: t.muted, marginBottom: 6 },
+    input: {
+      height: 46,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.card,
+      fontSize: 15,
+      color: t.foreground,
+    },
+    inputError: { borderColor: t.destructive },
+    error: { marginTop: 4, fontSize: 11.5, color: t.destructive },
 
-  segments: { flexDirection: 'row', gap: 8 },
-  segment: {
-    flex: 1,
-    height: 42,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentActive: { backgroundColor: theme.primary, borderColor: theme.primary },
-  segmentText: { fontSize: 14, color: theme.text, fontWeight: '600' },
-  segmentTextActive: { color: '#fff' },
+    segments: { flexDirection: 'row', gap: 8 },
+    segment: {
+      flex: 1,
+      height: 42,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    segmentActive: { backgroundColor: t.primary, borderColor: t.primary },
+    segmentText: { fontSize: 14, color: t.foreground, fontWeight: '600' },
+    segmentTextActive: { color: t.primaryForeground },
 
-  button: {
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: theme.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-  },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    button: {
+      height: 50,
+      borderRadius: 14,
+      backgroundColor: t.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 6,
+    },
+    buttonText: { color: t.primaryForeground, fontSize: 16, fontWeight: '700' },
 
-  modal: { flex: 1, backgroundColor: theme.bg },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 8,
-  },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: theme.primary },
-  modalBody: { padding: 20, paddingBottom: 48 },
+    modal: { flex: 1, backgroundColor: t.background },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 20,
+      paddingBottom: 8,
+    },
+    modalTitle: { fontSize: 20, fontWeight: '800', color: t.primary },
+    modalBody: { padding: 20, paddingBottom: 48 },
 
-  listHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
-  listTitle: { fontSize: 24, fontWeight: '800', color: theme.primary },
-  listSubtitle: { marginTop: 2, fontSize: 13, color: theme.muted },
-  addButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: theme.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    listHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
+    listTitle: { fontSize: 24, fontWeight: '800', color: t.primary },
+    listSubtitle: { marginTop: 2, fontSize: 13, color: t.muted },
+    addButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: t.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  empty: { alignItems: 'center', paddingTop: 80, gap: 10 },
-  doneText: { fontSize: 16, fontWeight: '700' },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  checkText: { flex: 1, fontSize: 15, fontWeight: '600' },
-  sectionHeader: { fontSize: 14, fontWeight: '800', marginTop: 8, marginBottom: 12 },
-  selectBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  selectText: { flex: 1, fontSize: 15 },
-  pickerSearch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 20,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  pickerSearchInput: { flex: 1, fontSize: 15 },
-  pickerList: { paddingHorizontal: 20, paddingBottom: 40 },
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  pickerRowText: { flex: 1, fontSize: 15.5 },
-  pickerEmpty: { textAlign: 'center', paddingVertical: 32, fontSize: 14 },
-  dateBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
-  dateSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
-  dateActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8, paddingTop: 8 },
-  dateAction: { fontSize: 16, fontWeight: '700' },
-  badge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  formActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  formCancel: { flex: 1, height: 50, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  formCancelText: { fontSize: 15.5, fontWeight: '700' },
-  formConfirm: { flex: 1.4, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  formConfirmText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
-  savingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dashed: {
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 36,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-  },
-  dashedTitle: { fontSize: 14.5, fontWeight: '600', textAlign: 'center' },
-  dashedSub: { fontSize: 13, textAlign: 'center' },
-  emptyText: { fontSize: 14, color: theme.muted },
-});
+    empty: { alignItems: 'center', paddingTop: 80, gap: 10 },
+    doneText: { fontSize: 16, fontWeight: '700' },
+    checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+    checkText: { flex: 1, fontSize: 15, fontWeight: '600' },
+    sectionHeader: { fontSize: 14, fontWeight: '800', marginTop: 8, marginBottom: 12 },
+    selectBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    selectText: { flex: 1, fontSize: 15 },
+    pickerSearch: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: 20,
+      marginBottom: 8,
+      paddingHorizontal: 14,
+      height: 44,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    pickerSearchInput: { flex: 1, fontSize: 15 },
+    pickerList: { paddingHorizontal: 20, paddingBottom: 40 },
+    pickerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    pickerRowText: { flex: 1, fontSize: 15.5 },
+    pickerEmpty: { textAlign: 'center', paddingVertical: 32, fontSize: 14 },
+    dateBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+    dateSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
+    dateActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8, paddingTop: 8 },
+    dateAction: { fontSize: 16, fontWeight: '700' },
+    badge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2 },
+    badgeText: { fontSize: 11, fontWeight: '700' },
+    formActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+    formCancel: { flex: 1, height: 50, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    formCancelText: { fontSize: 15.5, fontWeight: '700' },
+    formConfirm: { flex: 1.4, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    formConfirmText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
+    savingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dashed: {
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 36,
+      paddingHorizontal: 20,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+    },
+    dashedTitle: { fontSize: 14.5, fontWeight: '600', textAlign: 'center' },
+    dashedSub: { fontSize: 13, textAlign: 'center' },
+    emptyText: { fontSize: 14, color: t.muted },
+  });
+
+const useStyles = () => {
+  const t = useDashboardTheme();
+  return useMemo(() => createStyles(t), [t]);
+};

@@ -33,24 +33,16 @@ export default function StudentsScreen() {
   const t = useDashboardTheme();
   const canManage = useCanManageStudents();
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
-      <StudentRegistration
-        canManage={canManage}
-        title={canManage ? 'Student Registration' : 'Students'}
-        subtitle={canManage ? 'Register new students and manage their profiles' : 'Browse student profiles'}
-      />
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={[]}>
+      <StudentRegistration canManage={canManage} />
     </SafeAreaView>
   );
 }
 
 export function StudentRegistration({
   canManage,
-  title,
-  subtitle,
 }: {
   canManage: boolean;
-  title: string;
-  subtitle: string;
 }) {
   const t = useDashboardTheme();
   const queryClient = useQueryClient();
@@ -139,11 +131,8 @@ export function StudentRegistration({
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.primary} />}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.titleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.title, { color: t.primary }]}>{title}</Text>
-                <Text style={[styles.subtitle, { color: t.muted }]}>{subtitle}</Text>
-              </View>
+            <View style={[styles.titleRow, !canManage && { display: 'none' }]}>
+              <View style={{ flex: 1 }} />
               {canManage && (
                 <TouchableOpacity
                   style={[styles.addButton, { backgroundColor: t.primary }]}

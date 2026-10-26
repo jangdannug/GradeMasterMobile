@@ -14,6 +14,7 @@ import {
   ClassRecordStatus,
   classRecordStatusValue,
   formatRowName,
+  shortPeriodName,
   matchesStudentSearch,
   parseSearchTokens,
 } from './logic';
@@ -161,11 +162,6 @@ export default function GradingSheetScreen() {
 
   const header = (
     <View>
-      <Text style={[styles.title, { color: t.primary }]}>Grading Sheet</Text>
-      <Text style={[styles.subtitle, { color: t.muted }]}>
-        {schoolYear ? `S.Y. ${schoolYear.name}` : 'Enter and submit class scores'}
-      </Text>
-
       {periods.length > 0 && (
         <View style={styles.periods}>
           {periods.map((p) => {
@@ -176,7 +172,7 @@ export default function GradingSheetScreen() {
                 style={[styles.period, { borderColor: active ? t.primary : t.border, backgroundColor: active ? t.primaryTint : t.card }]}
                 onPress={() => setPickedPeriodId(p.id)}
               >
-                <Text style={[styles.periodText, { color: active ? t.primary : t.muted }]}>{p.name}</Text>
+                <Text style={[styles.periodText, { color: active ? t.primary : t.muted }]}>{shortPeriodName(p.name)}</Text>
               </TouchableOpacity>
             );
           })}
@@ -196,7 +192,7 @@ export default function GradingSheetScreen() {
               {card.subjectName}
             </Text>
             <Text style={[styles.selectedMeta, { color: t.muted }]} numberOfLines={1}>
-              {card.gradeLevelName} - {card.sectionName} · {periodLabel}
+              {schoolYear ? `S.Y. ${schoolYear.name} · ` : ''}{card.gradeLevelName} - {card.sectionName}
             </Text>
           </View>
           <Text style={[styles.change, { color: t.primary }]}>Change</Text>
@@ -234,7 +230,7 @@ export default function GradingSheetScreen() {
       )}
 
       {card && g.sheet && (
-        <View style={{ marginTop: 14, gap: 12 }}>
+        <View style={{ marginTop: 10, gap: 8 }}>
           {g.isRedacted && (
             <View style={[styles.note, { backgroundColor: t.warningTint }]}>
               <Text style={{ color: t.warning, fontSize: 13, fontWeight: '600' }}>
@@ -266,7 +262,7 @@ export default function GradingSheetScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={[]}>
       <FlatList
         data={card && g.sheet ? visibleRows : []}
         keyExtractor={(r) => r.enrollmentId}
@@ -278,7 +274,7 @@ export default function GradingSheetScreen() {
         initialNumToRender={4}
         windowSize={5}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.primary} />}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ItemSeparatorComponent={RowSeparator}
         ListEmptyComponent={
           card && g.sheet ? (
             <DashedEmpty icon="people-outline" title={tokens.length ? 'No students match your search.' : 'No students enrolled in this class.'} />
@@ -348,15 +344,19 @@ export default function GradingSheetScreen() {
 // keep the keys export reachable for other screens invalidating the sheet
 export { classRecordKeys };
 
+// Module-level so the list keeps the same component type between renders (an inline one remounts every separator on each keystroke)
+const RowSeparator = () => <View style={{ height: 8 }} />;
+
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  list: { padding: 16, paddingBottom: 40 },
+  list: { padding: 12, paddingBottom: 40 },
   title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   subtitle: { marginTop: 3, marginBottom: 14, fontSize: 13 },
-  periods: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  period: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
-  periodText: { fontSize: 13, fontWeight: '700' },
-  selected: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, padding: 14 },
+  periods: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  period: { flex: 1, alignItems: 'center', borderWidth: 1.5, borderRadius: 999, paddingVertical: 6 },
+  periodText: { fontSize: 12.5, fontWeight: '700' },
+  selected: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14 },
   selectedTitle: { fontSize: 15.5, fontWeight: '700' },
   selectedMeta: { fontSize: 12.5, marginTop: 2 },
   change: { fontSize: 13.5, fontWeight: '700' },

@@ -518,3 +518,7 @@ export function subjectTint(gradeNumeric: number, subjectKey: string, dark: bool
 /** Two-decimal display of a grade; "—" when missing */
 export const formatGrade = (value: number | null | undefined, digits = 2) =>
   value === null || value === undefined || Number.isNaN(value) ? '—' : value.toFixed(digits);
+
+/** "First Quarter" -> "1st Qtr", so all four grading periods fit on one row */
+export const shortPeriodName = (name: string) =>
+  name.replace(/^First/i, '1st').replace(/^Second/i, '2nd').replace(/^Third/i, '3rd').replace(/^Fourth/i, '4th').replace(/Quarter/i, 'Qtr');

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDashboardTheme, type DashboardTheme } from '../dashboard/theme';
 import {
   ActivityIndicator,
   Alert,
@@ -12,12 +13,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EmptyState, Field, FormModal, ListHeader, PrimaryButton, theme } from '../components/forms';
+import { EmptyState, Field, FormModal, ListHeader, PrimaryButton } from '../components/forms';
 import { apiErrorMessage } from '../api';
 import { schoolYearsApi } from '../api/schoolYears';
 import { Subject, subjectsApi } from '../api/subjects';
 
 export default function SubjectsScreen() {
+  const t = useDashboardTheme();
+  const styles = useMemo(() => createStyles(t), [t]);
   const [items, setItems] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -105,9 +108,8 @@ export default function SubjectsScreen() {
     ]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <ListHeader
-        title="Subjects"
         subtitle={`${items.length} subject${items.length === 1 ? '' : 's'}`}
         onAdd={() => setAdding(true)}
       />
@@ -144,7 +146,7 @@ export default function SubjectsScreen() {
                 {item.units != null && <Text style={styles.muted}>{item.units} unit(s)</Text>}
               </View>
               <TouchableOpacity onPress={() => confirmDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="trash-outline" size={20} color={theme.danger} />
+                <Ionicons name="trash-outline" size={20} color={t.destructive} />
               </TouchableOpacity>
             </View>
           )}
@@ -173,25 +175,26 @@ export default function SubjectsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.bg },
-  list: { padding: 20, paddingTop: 4, gap: 12 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: theme.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  code: { fontSize: 12, fontWeight: '700', color: theme.accent },
-  name: { marginTop: 2, fontSize: 17, fontWeight: '700', color: theme.text },
-  muted: { marginTop: 2, fontSize: 12.5, color: theme.muted },
-  badge: { backgroundColor: '#DBEAFE', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeText: { fontSize: 11, fontWeight: '700', color: theme.accent },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
-  switchLabel: { fontSize: 15, color: theme.text, fontWeight: '600' },
-});
+const createStyles = (t: DashboardTheme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.background },
+    list: { padding: 20, paddingTop: 4, gap: 12 },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: t.card,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    code: { fontSize: 12, fontWeight: '700', color: t.academic },
+    name: { marginTop: 2, fontSize: 17, fontWeight: '700', color: t.foreground },
+    muted: { marginTop: 2, fontSize: 12.5, color: t.muted },
+    badge: { backgroundColor: t.primaryTint, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+    badgeText: { fontSize: 11, fontWeight: '700', color: t.academic },
+    switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
+    switchLabel: { fontSize: 15, color: t.foreground, fontWeight: '600' },
+  });

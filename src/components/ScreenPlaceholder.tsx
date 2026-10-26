@@ -9,12 +9,9 @@ interface Props {
   children?: React.ReactNode;
 }
 
-export default function ScreenPlaceholder({ title, icon, children }: Props) {
+export default function ScreenPlaceholder({ icon, children }: Props) {
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={[]}>
       <View style={styles.body}>
         <View style={styles.iconBox}>
           <Ionicons name={icon} size={36} color="#1E3A5F" />

@@ -22,7 +22,7 @@ import { gradeLevelsApi } from '../api/gradeLevels';
 import { sectionsApi } from '../api/sections';
 import { academicKeys } from '../academic-setup/keys';
 import ActivitySheet from '../class-record/ActivitySheet';
-import { ClassRecordStatus, SectionSubmissionStatus } from '../class-record/logic';
+import { ClassRecordStatus, SectionSubmissionStatus, shortPeriodName } from '../class-record/logic';
 import { classRecordKeys } from '../class-record/useGradingSheet';
 import { Pill, StatusBadge } from '../class-record/StatusBadges';
 import { DashedEmpty } from '../components/forms';
@@ -121,17 +121,12 @@ export default function SubmittedScoresScreen() {
 
   // ---------------------------------------------------------------------------------------------
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={[]}>
       <ScrollView
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.primary} />}
       >
-        <Text style={[styles.title, { color: t.primary }]}>Submitted Scores</Text>
-        <Text style={[styles.subtitle, { color: t.muted }]}>
-          {schoolYear ? `S.Y. ${schoolYear.name} · ` : ''}Review section submissions
-        </Text>
-
         <View style={styles.periods}>
           {periods.map((p) => {
             const active = p.id === gradingPeriod?.id;
@@ -141,7 +136,7 @@ export default function SubmittedScoresScreen() {
                 style={[styles.period, { borderColor: active ? t.primary : t.border, backgroundColor: active ? t.primaryTint : t.card }]}
                 onPress={() => setPickedPeriodId(p.id)}
               >
-                <Text style={[styles.periodText, { color: active ? t.primary : t.muted }]}>{p.name}</Text>
+                <Text style={[styles.periodText, { color: active ? t.primary : t.muted }]}>{shortPeriodName(p.name)}</Text>
               </TouchableOpacity>
             );
           })}
@@ -182,7 +177,7 @@ export default function SubmittedScoresScreen() {
         {selected && (
           <View style={[styles.detail, { backgroundColor: t.card, borderColor: t.border }]}>
             <Text style={[styles.detailTitle, { color: t.primary }]}>
-              {selected.levelName} - {selected.name} · {gradingPeriod?.name}
+              {schoolYear ? `S.Y. ${schoolYear.name} · ` : ''}{selected.levelName} - {selected.name} · {gradingPeriod?.name}
             </Text>
             {readiness[selectedIndex]?.isLoading ? (
               <ActivityIndicator style={{ marginVertical: 16 }} color={t.primary} />
@@ -356,22 +351,22 @@ function RejectSheet({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  list: { padding: 16, paddingBottom: 40, gap: 10 },
+  list: { padding: 12, paddingBottom: 40, gap: 8 },
   title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   subtitle: { marginTop: -6, marginBottom: 4, fontSize: 13 },
-  periods: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  period: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
-  periodText: { fontSize: 13, fontWeight: '700' },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderRadius: 14, padding: 14 },
-  cardTitle: { fontSize: 15.5, fontWeight: '700' },
-  cardMeta: { fontSize: 12.5, marginTop: 2 },
-  detail: { borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 4 },
-  detailTitle: { fontSize: 15, fontWeight: '800', marginBottom: 8 },
-  record: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth },
-  recordName: { fontSize: 14.5, fontWeight: '600' },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  iconBtn: { width: 46, height: 46, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  btn: { flex: 1, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  periods: { flexDirection: 'row', gap: 6 },
+  period: { flex: 1, alignItems: 'center', borderWidth: 1.5, borderRadius: 999, paddingVertical: 6 },
+  periodText: { fontSize: 12.5, fontWeight: '700' },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 12 },
+  cardTitle: { fontSize: 14.5, fontWeight: '700' },
+  cardMeta: { fontSize: 12, marginTop: 1 },
+  detail: { borderWidth: 1, borderRadius: 14, padding: 12 },
+  detailTitle: { fontSize: 14, fontWeight: '800', marginBottom: 4 },
+  record: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
+  recordName: { fontSize: 14, fontWeight: '600' },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  iconBtn: { width: 42, height: 42, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  btn: { flex: 1, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   hint: { marginTop: 10, fontSize: 12.5 },
   reason: { minHeight: 110, borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 15, textAlignVertical: 'top' },

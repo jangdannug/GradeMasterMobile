@@ -333,6 +333,7 @@ const styles = StyleSheet.create({
   buttonShadow: {
     marginTop: 6,
     borderRadius: 14,
+    backgroundColor: colors.indigo500,
     shadowColor: colors.indigo500,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,

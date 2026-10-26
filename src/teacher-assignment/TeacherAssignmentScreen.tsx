@@ -34,14 +34,7 @@ export default function TeacherAssignmentScreen() {
   }));
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: t.primary }]}>Teacher Assignment</Text>
-        <Text style={[styles.subtitle, { color: t.muted }]}>
-          Manage teacher assignments and adviser assignments per school year
-        </Text>
-      </View>
-
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={[]}>
       <View style={styles.selector}>
         <SelectField
           label="School Year"
