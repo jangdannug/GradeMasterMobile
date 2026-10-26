@@ -32,14 +32,7 @@ export default function SchoolSetupScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: t.primary }]}>School Setup</Text>
-        <Text style={[styles.subtitle, { color: t.muted }]}>
-          Manage the organization's reference data — districts, schools, and school years
-        </Text>
-      </View>
-
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={[]}>
       <View style={[styles.tabBar, { borderBottomColor: t.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBarContent}>
           {TABS.map((tab) => {

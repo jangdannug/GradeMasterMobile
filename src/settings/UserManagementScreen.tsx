@@ -144,7 +144,7 @@ export default function UserManagementScreen() {
                 ref={inputRef}
                 style={[styles.searchInput, { color: t.foreground }]}
                 placeholder="Search name or email..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={t.muted}
                 onChangeText={(v) => {
                   typed.current = v;
                   setHasText(v.length > 0);

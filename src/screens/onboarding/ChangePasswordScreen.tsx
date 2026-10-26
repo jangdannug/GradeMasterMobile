@@ -203,6 +203,7 @@ const styles = StyleSheet.create({
   toggleText: { fontSize: 12.5, color: BLUE_300 },
   buttonShadow: {
     borderRadius: 14,
+    backgroundColor: INDIGO_500,
     shadowColor: INDIGO_500,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,

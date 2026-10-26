@@ -164,12 +164,7 @@ export default function EnrollmentTab() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.primary} />}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={[styles.title, { color: t.primary }]}>Student Enrollment</Text>
-            <Text style={[styles.subtitle, { color: t.muted }]}>
-              Manage student enrollments for the selected school year
-            </Text>
-
-            <View style={{ marginTop: 14 }}>
+            <View>
               <SelectField
                 label="School Year"
                 value={selectedId}

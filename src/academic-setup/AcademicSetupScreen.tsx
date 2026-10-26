@@ -58,15 +58,7 @@ export default function AcademicSetupScreen() {
   }));
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: t.primary }]}>Academic Setup</Text>
-        <Text style={[styles.subtitle, { color: t.muted }]}>
-          Build grade levels and subjects, define grading schemes, assign schemes to subjects, then review and activate
-          — in that order
-        </Text>
-      </View>
-
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={[]}>
       <View style={styles.selector}>
         <SelectField
           label="School Year"

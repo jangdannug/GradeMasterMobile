@@ -214,7 +214,7 @@ function TextRow({ label, error, ...props }: TextInputProps & { label: string; e
     <View style={styles.field}>
       <Text style={[styles.label, { color: t.muted }]}>{label}</Text>
       <TextInput
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={t.muted}
         {...props}
         style={[
           styles.input,

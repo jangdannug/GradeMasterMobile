@@ -27,13 +27,13 @@ function ScoreEntry({ label, max, weight, initial, disabled, over, blank, inputR
   const danger = over;
   return (
     <View style={styles.cell}>
-      <View style={styles.labelRow}>
-        <Text style={[styles.label, { color: danger ? t.destructive : t.muted }]} numberOfLines={1}>
+      <View style={styles.labels}>
+        <Text style={[styles.label, { color: danger ? t.destructive : t.foreground }]} numberOfLines={1}>
           {label}
-        </Text>
-        <Text style={[styles.max, { color: danger ? t.destructive : t.muted }]}>
-          / {max > 0 ? max : '—'}
-          {weight !== undefined && weight > 0 ? ` · ${Math.round(weight * 100) / 100}%` : ''}
+          <Text style={[styles.max, { color: danger ? t.destructive : t.muted }]}>
+            {'  '}/ {max > 0 ? max : '—'}
+            {weight !== undefined && weight > 0 ? ` · ${Math.round(weight * 100) / 100}%` : ''}
+          </Text>
         </Text>
       </View>
       <TextInput
@@ -44,7 +44,6 @@ function ScoreEntry({ label, max, weight, initial, disabled, over, blank, inputR
             color: danger ? t.destructive : t.foreground,
             borderColor: danger ? t.destructive : blank ? t.warning : t.border,
             backgroundColor: disabled ? t.secondaryTint : t.card,
-            borderStyle: blank && !danger ? 'dashed' : 'solid',
           },
         ]}
         defaultValue={initial === undefined ? '' : String(initial)}
@@ -59,7 +58,7 @@ function ScoreEntry({ label, max, weight, initial, disabled, over, blank, inputR
         autoCorrect={false}
         autoCapitalize="none"
         placeholder="—"
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={t.muted}
       />
     </View>
   );
@@ -68,9 +67,9 @@ function ScoreEntry({ label, max, weight, initial, disabled, over, blank, inputR
 export default React.memo(ScoreEntry);
 
 const styles = StyleSheet.create({
-  cell: { width: '47%', flexGrow: 1 },
-  labelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginBottom: 4 },
-  label: { flexShrink: 1, fontSize: 12, fontWeight: '700' },
-  max: { fontSize: 11 },
-  input: { height: 42, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, fontSize: 16, fontWeight: '600' },
+  cell: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  labels: { flex: 1 },
+  label: { fontSize: 14.5, fontWeight: '700' },
+  max: { fontSize: 12, fontWeight: '500' },
+  input: { width: 92, height: 36, textAlign: 'right', borderWidth: 1.5, borderRadius: 9, borderStyle: 'solid', paddingHorizontal: 10, fontSize: 15, fontWeight: '600' },
 });

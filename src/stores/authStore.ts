@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import { apiErrorMessage, initializeApi } from '../api';
 import { authApi } from '../api/auth';
+import { DEFAULT_THEME, normalizeTheme, type ThemeId } from '../theme/themes';
+import { readUserTheme, saveUserTheme } from '../theme/themeStorage';
 
 type UserRole = 'Teacher' | 'SchoolHead' | 'Admin' | '';
 
@@ -26,8 +28,8 @@ interface AuthState {
   user: User | null;
   refreshToken: string | null;
   authSchool: string | null;
-  // null = follow the system appearance until the user picks one
-  theme: 'light' | 'dark' | null;
+  // The active theme; also the device's last-used one, which the login screen shows
+  theme: ThemeId;
   isLoggedIn: boolean;
   isLoading: boolean;
   // Set while the backend requires a password change before issuing an access token
@@ -41,7 +43,7 @@ interface AuthState {
   cancelPasswordChange: () => void;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
-  setTheme: (theme: 'light' | 'dark' | null) => void;
+  setTheme: (theme: ThemeId) => void;
   clearAuth: () => void;
 }
 // Dev/test sign-in, same as the web "Demo Account": exchanges the built-in test key
@@ -90,6 +92,13 @@ function userFromToken(token: string, fallbackEmail: string): User {
   };
 }
 
+// Once a user is known, their own saved theme takes over from the device's last one
+const restoreUserTheme = async (userId: string | undefined) => {
+  if (!userId) return;
+  const own = await readUserTheme(userId);
+  if (own) useAuthStore.setState({ theme: own });
+};
+
 const secureStorage = {
   getItem: (name: string) => SecureStore.getItemAsync(name),
   setItem: (name: string, value: string) => SecureStore.setItemAsync(name, value),
@@ -102,7 +111,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       refreshToken: null,
       authSchool: null,
-      theme: null,
+      theme: DEFAULT_THEME,
       isLoggedIn: false,
       isLoading: true,
       passwordChangeToken: null,
@@ -140,6 +149,7 @@ export const useAuthStore = create<AuthState>()(
             isLoggedIn: true,
             isLoading: false,
           });
+          restoreUserTheme(get().user?.id);
         } catch (error: any) {
           throw new Error(apiErrorMessage(error, 'Login failed. Please check your credentials.'));
         } finally {
@@ -167,6 +177,7 @@ export const useAuthStore = create<AuthState>()(
             authSchool: DEMO_LOGIN.schoolId,
             isLoggedIn: true,
           });
+          restoreUserTheme(get().user?.id);
         } catch (error: any) {
           throw new Error(apiErrorMessage(error, 'Demo sign-in failed. Is the backend running?'));
         } finally {
@@ -198,6 +209,7 @@ export const useAuthStore = create<AuthState>()(
             passwordChangeToken: null,
             isLoggedIn: true,
           });
+          restoreUserTheme(get().user?.id);
         } catch (error: any) {
           throw new Error(apiErrorMessage(error, 'Password change failed. Please try again.'));
         } finally {
@@ -242,6 +254,7 @@ export const useAuthStore = create<AuthState>()(
           isLoggedIn: true,
           isLoading: false,
         });
+        restoreUserTheme(userData.id);
       },
       
       logout: async () => {
@@ -292,8 +305,10 @@ export const useAuthStore = create<AuthState>()(
         }
       },
       
-      setTheme: (theme: 'light' | 'dark' | null) => {
+      setTheme: (theme: ThemeId) => {
         set({ theme });
+        const userId = get().user?.id;
+        if (userId) saveUserTheme(userId, theme);
       },
       
       clearAuth: () => {
@@ -311,7 +326,12 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => secureStorage),
       partialize: (state) => ({
         theme: state.theme,
-      })
+      }),
+      // Older installs stored 'light' | 'dark' | null
+      merge: (persisted, current) => ({
+        ...current,
+        theme: normalizeTheme((persisted as { theme?: string | null } | undefined)?.theme),
+      }),
     }
   )
 );

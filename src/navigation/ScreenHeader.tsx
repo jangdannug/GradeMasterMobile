@@ -48,7 +48,7 @@ export default function ScreenHeader({
           {title}
         </Text>
         <TouchableOpacity
-          onPress={() => setTheme(t.isDark ? 'light' : 'dark')}
+          onPress={() => setTheme(t.isDark ? 'mist' : 'dark')}
           style={styles.button}
           accessibilityLabel="Toggle theme"
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}

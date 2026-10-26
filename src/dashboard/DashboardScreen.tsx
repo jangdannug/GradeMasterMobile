@@ -1,7 +1,6 @@
 import React from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '../stores/authStore';
 import Card from './components/Card';
 import GradeBarChart from './components/GradeBarChart';
 import StatCard from './components/StatCard';
@@ -17,7 +16,6 @@ const CARD_PADDING = 16;
 
 export default function DashboardScreen() {
   const t = useDashboardTheme();
-  const user = useAuthStore((s) => s.user);
   const { width } = useWindowDimensions();
   const { data, isLoading, isRefetching, refetch } = useDashboardData();
 
@@ -25,19 +23,12 @@ export default function DashboardScreen() {
   const chartWidth = width - GUTTER * 2 - CARD_PADDING * 2 - 2;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={[]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={t.primary} />}
       >
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: t.primary }]}>Dashboard</Text>
-          <Text style={[styles.subtitle, { color: t.muted }]}>
-            {user?.name ? `Welcome back, ${user.name}` : 'Welcome back'}
-          </Text>
-        </View>
-
         {/* Stat cards */}
         {isLoading ? (
           <View style={styles.statGrid}>

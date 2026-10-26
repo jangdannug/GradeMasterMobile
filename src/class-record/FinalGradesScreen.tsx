@@ -9,7 +9,6 @@ export default function FinalGradesScreen() {
   return (
     <ScrollView style={{ backgroundColor: t.background }} contentContainerStyle={styles.body}>
       <View style={[styles.card, { backgroundColor: t.card, borderColor: t.border }]}>
-        <Text style={[styles.title, { color: t.foreground }]}>Final Grades</Text>
         <Text style={[styles.desc, { color: t.muted }]}>Final grades of learners per subject and grading period.</Text>
       </View>
       <DashedEmpty icon="ribbon-outline" title="Coming soon" />
