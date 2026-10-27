@@ -58,7 +58,15 @@ export const MENU: MenuItem[] = [
       { id: 'students/class-record', label: 'Grading Sheets', icon: 'book', route: 'students/class-record', roles: EVERYONE },
       { id: 'students/class-record/submitted-scores', label: 'Submitted Scores', icon: 'clipboard', route: 'students/class-record/submitted-scores', roles: STAFF },
       { id: 'students/class-record/final-grades', label: 'Final Grades', icon: 'ribbon', route: 'students/class-record/final-grades', roles: EVERYONE },
-      { id: 'students/class-record/answer-sheets', label: 'Scan Answer Sheets', icon: 'scan', route: 'students/class-record/answer-sheets', roles: EVERYONE },
+    ],
+  },
+  {
+    id: 'assessments',
+    label: 'Assessments',
+    icon: 'checkbox',
+    roles: EVERYONE,
+    children: [
+      { id: 'assessments/answer-sheets', label: 'Scan Answer Sheets', icon: 'scan', route: 'assessments/answer-sheets', roles: EVERYONE },
     ],
   },
   {

@@ -33,7 +33,7 @@ const SCREENS: Record<string, React.ComponentType<any>> = {
   'students/class-record': GradingSheetScreen,
   'students/class-record/submitted-scores': SubmittedScoresScreen,
   'students/class-record/final-grades': FinalGradesScreen,
-  'students/class-record/answer-sheets': AnswerSheetScanScreen,
+  'assessments/answer-sheets': AnswerSheetScanScreen,
   admin: UserManagementScreen,
   settings: SettingsScreen,
   ...Object.fromEntries(SCHOOL_FORMS.map((f) => [`school-forms/${f.code.toLowerCase()}`, FormPlaceholderScreen])),
