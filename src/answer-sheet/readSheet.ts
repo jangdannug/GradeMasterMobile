@@ -1,4 +1,4 @@
-import { MARK_MM, PAGE_MM, computeSheetLayout, markCenters } from './sheetLayout.ts';
+import { MARK_MM, PAGE_MM, computeSheetLayout, itemChoices, markCenters, type SheetShape } from './sheetLayout.ts';
 
 /**
  * Reads a photographed answer sheet. Pure functions over grayscale pixel buffers,
@@ -330,38 +330,81 @@ function discDarkness(img: GrayImage, cx: number, cy: number, r: number): number
   return n === 0 ? 0 : 1 - sum / n / 255;
 }
 
-/**
- * Reads every item of a straightened, lighting-flattened page. The disc measured is smaller than
- * the printed circle so its outline (and small misalignments) don't count as a mark.
- */
-export function readBubbles(page: GrayImage, itemCount: number, choiceCount: number): ReadItem[] {
-  const layout = computeSheetLayout(itemCount, choiceCount);
-  const s = page.width / PAGE_MM.width;
-  const radiusMm = layout.bubbleMm / 2;
-  const innerMm = Math.max(0.45 * radiusMm, radiusMm - 1.1);
+/** The disc measured inside a printed bubble: smaller, so its outline (and small misalignments) don't count */
+const innerRadiusMm = (bubbleMm: number) => Math.max(0.45 * (bubbleMm / 2), bubbleMm / 2 - 1.1);
 
-  const darkness: number[][] = Array.from({ length: itemCount }, () => new Array<number>(choiceCount).fill(0));
+/** Which of a row of bubbles is shaded: the darkest, unless none is dark enough or a runner-up is close */
+function pickMark(darkness: number[]): ReadItem {
+  const order = darkness.map((v, i) => [v, i] as const).sort((a, b) => b[0] - a[0]);
+  const [top, second] = [order[0], order[1]];
+  if (top[0] < MARKED_DARKNESS) return { answer: null, state: 'blank', darkness };
+  if (second && second[0] >= MARKED_DARKNESS && second[0] >= top[0] * MULTIPLE_RATIO) {
+    return { answer: null, state: 'multiple', darkness };
+  }
+  return { answer: top[1], state: 'answered', darkness };
+}
+
+/** Reads every item of a straightened, lighting-flattened page; true-or-false items have two choices. */
+export function readBubbles(page: GrayImage, shape: SheetShape): ReadItem[] {
+  const layout = computeSheetLayout(shape);
+  const s = page.width / PAGE_MM.width;
+  const innerMm = innerRadiusMm(layout.bubbleMm);
+
+  const darkness: number[][] = Array.from({ length: shape.itemCount }, (_, i) => new Array<number>(itemChoices(shape, i)).fill(0));
   for (const b of layout.bubbles) darkness[b.item][b.choice] = discDarkness(page, b.x * s, b.y * s, innerMm * s);
 
-  return darkness.map((d) => {
-    const order = d.map((v, i) => [v, i] as const).sort((a, b) => b[0] - a[0]);
-    const [top, second] = [order[0], order[1]];
-    if (top[0] < MARKED_DARKNESS) return { answer: null, state: 'blank', darkness: d };
-    if (second && second[0] >= MARKED_DARKNESS && second[0] >= top[0] * MULTIPLE_RATIO) {
-      return { answer: null, state: 'multiple', darkness: d };
-    }
-    return { answer: top[1], state: 'answered', darkness: d };
+  return darkness.map(pickMark);
+}
+
+export type EssayState = 'read' | 'blank' | 'multiple' | 'over';
+
+export interface EssayReading {
+  /** The points shaded in the essay's score row(s); null unless `state` is 'read' */
+  points: number | null;
+  /**
+   * 'blank' when nothing (or only the tens digit) is shaded, 'multiple' when a digit row has two marks,
+   * 'over' when the shaded number is more than the essay's max points
+   */
+  state: EssayState;
+}
+
+/** Reads the teacher's score rows, one reading per essay; empty when the sheet has none */
+export function readEssays(page: GrayImage, shape: SheetShape): EssayReading[] {
+  // the box sits above or below the questions depending on the part order
+  const box = computeSheetLayout(shape).essay;
+  if (!box) return [];
+  const essayPoints = box.points;
+  const s = page.width / PAGE_MM.width;
+  const innerMm = innerRadiusMm(box.bubbleMm);
+
+  return essayPoints.map((max, essay) => {
+    const rows = box.rows
+      .filter((row) => row.essay === essay)
+      .map((row) => ({
+        place: row.place,
+        // a row has only the digits the essay allows
+        mark: pickMark(box.digitX.slice(0, row.digits).map((x) => discDarkness(page, x * s, row.y * s, innerMm * s))),
+      }));
+    if (rows.some((r) => r.mark.state === 'multiple')) return { points: null, state: 'multiple' };
+    const ones = rows.find((r) => r.place === 'ones')!.mark.answer;
+    const tens = rows.find((r) => r.place === 'tens')?.mark.answer ?? null;
+    // "7" may be shaded as ones only; a lone tens digit means the ones row was forgotten
+    if (ones === null) return { points: null, state: 'blank' };
+    const points = (tens ?? 0) * 10 + ones;
+    return points > max ? { points: null, state: 'over' } : { points, state: 'read' };
   });
 }
 
 export interface SheetReading {
   items: ReadItem[];
+  /** One reading per essay; empty when the sheet has none */
+  essays: EssayReading[];
 }
 
 /** The whole pipeline on a grayscale photo; null when the four corner marks can't be found */
-export function readSheet(photo: GrayImage, itemCount: number, choiceCount: number): SheetReading | null {
+export function readSheet(photo: GrayImage, shape: SheetShape): SheetReading | null {
   const corners = findCornerMarks(photo);
   if (!corners) return null;
   const page = flattenLighting(rectifyPage(photo, corners));
-  return { items: readBubbles(page, itemCount, choiceCount) };
+  return { items: readBubbles(page, shape), essays: readEssays(page, shape) };
 }

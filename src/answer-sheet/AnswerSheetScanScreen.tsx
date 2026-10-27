@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CameraView, scanFromURLAsync, useCameraPermissions } from 'expo-camera';
 import { launchImageLibraryAsync } from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,18 +9,27 @@ import { answerSheetsApi } from '../api/answerSheets';
 import { gradeSubmissionApi } from '../api/gradeSubmission';
 import { classRecordKeys } from '../class-record/useGradingSheet';
 import { useDashboardTheme } from '../dashboard/theme';
-import { parseAnswerSheetQr, scoreAnswers, type AnswerSheet, type AnswerSheetQr } from './answerSheet';
+import { choiceLabel, essayTotal, parseAnswerSheetQr, scoreAnswers, type AnswerSheet, type AnswerSheetQr } from './answerSheet';
 import { decodePhoto } from './decodePhoto';
-import { readSheet, type ItemState } from './readSheet';
+import { itemChoices } from './sheetLayout';
+import { readSheet, type EssayState, type ItemState } from './readSheet';
 
 type Step = 'scan' | 'reading' | 'review';
 
 interface Reading {
   answers: (number | null)[];
   states: ItemState[];
+  /** Per essay: the points from its score row(s) (read, or typed in when they couldn't be), null until known */
+  essayPoints: (number | null)[];
+  /** Per essay: how its score row(s) read */
+  essayStates: EssayState[];
 }
 
-const letter = (i: number) => String.fromCharCode(97 + i);
+const ESSAY_HINT: Record<Exclude<EssayState, 'read'>, string> = {
+  blank: 'Not shaded — enter the points.',
+  multiple: 'Two digits shaded in one row — enter the points.',
+  over: 'Shaded more than the max — enter the points.',
+};
 
 /**
  * Scores a student's answer sheet from a photo: the QR code says whose sheet it is, the four corner
@@ -75,7 +84,7 @@ export default function AnswerSheetScanScreen() {
 
   /** Reads the bubbles of a photo already known to belong to `forSheet`; back to the camera when it can't */
   const readPhoto = (base64: string, forSheet: AnswerSheet) => {
-    const result = readSheet(decodePhoto(base64), forSheet.itemCount, forSheet.choiceCount);
+    const result = readSheet(decodePhoto(base64), forSheet);
     if (!result) {
       Alert.alert(
         "Couldn't read the sheet",
@@ -84,7 +93,12 @@ export default function AnswerSheetScanScreen() {
       setStep('scan');
       return;
     }
-    setReading({ answers: result.items.map((i) => i.answer), states: result.items.map((i) => i.state) });
+    setReading({
+      answers: result.items.map((i) => i.answer),
+      states: result.items.map((i) => i.state),
+      essayPoints: result.essays.map((e) => e.points),
+      essayStates: result.essays.map((e) => e.state),
+    });
     setStep('review');
   };
 
@@ -138,7 +152,11 @@ export default function AnswerSheetScanScreen() {
     }
   };
 
-  const score = sheet && reading ? scoreAnswers(sheet, reading.answers) : 0;
+  const hasEssay = !!sheet && sheet.essayPoints.length > 0;
+  // Never post the bubbled part alone: the class record would show it as the final score.
+  const essayMissing = hasEssay && !!reading && reading.essayPoints.some((p) => p == null);
+  const essayGiven = reading ? reading.essayPoints.reduce<number>((a, p) => a + (p ?? 0), 0) : 0;
+  const score = sheet && reading ? scoreAnswers(sheet, reading.answers, essayGiven) : 0;
 
   const save = useMutation({
     mutationFn: () =>
@@ -153,6 +171,20 @@ export default function AnswerSheetScanScreen() {
     onError: (error) => Alert.alert('Could not save the score', apiErrorMessage(error)),
   });
 
+  // ---- Answer key copy: the teacher shaded the correct answers; scanning it sets the sheet's key ----
+  const isKey = !!qr?.isKey;
+  const [keySavedFor, setKeySavedFor] = useState<string | null>(null);
+  const saveKey = useMutation({
+    mutationFn: () => answerSheetsApi.saveAnswerKey(sheet!, reading!.answers),
+    onSuccess: (updated) => {
+      if (updated) queryClient.setQueryData(['answer-sheet', updated.id], updated);
+      queryClient.invalidateQueries({ queryKey: ['answer-sheet'] });
+      setKeySavedFor(sheet!.title);
+      reset();
+    },
+    onError: (error) => Alert.alert('Could not save the answer key', apiErrorMessage(error)),
+  });
+
   const setAnswer = (item: number, choice: number) =>
     setReading((r) => {
       if (!r) return r;
@@ -160,7 +192,16 @@ export default function AnswerSheetScanScreen() {
       const states = [...r.states];
       answers[item] = answers[item] === choice ? null : choice;
       states[item] = answers[item] === null ? 'blank' : 'answered';
-      return { answers, states };
+      return { ...r, answers, states };
+    });
+
+  const setEssayPoints = (essay: number, text: string) =>
+    setReading((r) => {
+      if (!r || !sheet) return r;
+      const digits = text.replace(/[^0-9]/g, '');
+      const essayPoints = [...r.essayPoints];
+      essayPoints[essay] = digits === '' ? null : Math.min(Number(digits), sheet.essayPoints[essay]);
+      return { ...r, essayPoints };
     });
 
   // ---- Permission ----------------------------------------------------------------------------------
@@ -179,6 +220,62 @@ export default function AnswerSheetScanScreen() {
   }
 
   // ---- Review --------------------------------------------------------------------------------------
+  if (step === 'review' && sheet && reading && isKey) {
+    const unset = reading.answers.filter((a) => a === null).length;
+    return (
+      <View style={[styles.container, { backgroundColor: t.background }]}>
+        <ScrollView contentContainerStyle={styles.list}>
+          <View style={[styles.card, { backgroundColor: t.card, borderColor: t.border }]}>
+            <Text style={[styles.title, { color: t.foreground }]}>Answer key</Text>
+            <Text style={[styles.hint, { color: t.mutedForeground }]}>
+              {sheet.title} · {sheet.subject} · {sheet.term}
+            </Text>
+            <Text style={[styles.hint, { color: t.foreground }]}>
+              These are the answers found on your copy. Tap a letter to fix one, then save them as the correct answers.
+            </Text>
+            {unset > 0 && (
+              <Text style={[styles.hint, { color: t.warning }]}>
+                {unset} question{unset === 1 ? ' is' : 's are'} blank or double-shaded — tap the correct answer, or save and leave {unset === 1 ? 'it' : 'them'} unset for now.
+              </Text>
+            )}
+            {sheet.answers.some((a) => a !== null) && (
+              <Text style={[styles.hint, { color: t.mutedForeground }]}>Saving replaces the answer key this sheet has now.</Text>
+            )}
+          </View>
+
+          {reading.answers.map((answer, item) => (
+            <View key={item} style={[styles.itemRow, { borderColor: answer === null ? t.warning : t.border, backgroundColor: t.card }]}>
+              <Text style={[styles.itemNo, { color: t.mutedForeground }]}>{item + 1}</Text>
+              <View style={styles.choices}>
+                {Array.from({ length: itemChoices(sheet, item) }, (_, c) => (
+                  <TouchableOpacity
+                    key={c}
+                    onPress={() => setAnswer(item, c)}
+                    style={[styles.choice, { borderColor: t.border }, answer === c && { backgroundColor: t.primary, borderColor: t.primary }]}
+                  >
+                    <Text style={{ color: answer === c ? t.primaryForeground : t.foreground, fontWeight: '700' }}>{choiceLabel(sheet, item, c)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+        <View style={[styles.bar, { backgroundColor: t.card, borderColor: t.border }]}>
+          <TouchableOpacity style={[styles.btnOutline, { borderColor: t.border }]} onPress={reset}>
+            <Text style={{ color: t.foreground, fontWeight: '700' }}>Retake</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            disabled={saveKey.isPending}
+            style={[styles.btn, { backgroundColor: t.primary, opacity: saveKey.isPending ? 0.5 : 1 }]}
+            onPress={() => saveKey.mutate()}
+          >
+            {saveKey.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Save as answer key</Text>}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   if (step === 'review' && sheet && reading) {
     const flagged = reading.states.filter((s) => s !== 'answered').length;
     return (
@@ -192,6 +289,11 @@ export default function AnswerSheetScanScreen() {
             <Text style={[styles.score, { color: t.primary }]}>
               {score} / {sheet.maxScore}
             </Text>
+            {hasEssay && (
+              <Text style={[styles.hint, { color: t.mutedForeground }]}>
+                Bubbled items {Math.round((score - essayGiven) * 100) / 100} + essays {essayMissing ? '—' : essayGiven} / {essayTotal(sheet)}
+              </Text>
+            )}
             {flagged > 0 && (
               <Text style={[styles.hint, { color: t.warning }]}>
                 {flagged} item{flagged === 1 ? '' : 's'} blank or double-shaded — tap the right letter to fix.
@@ -202,6 +304,34 @@ export default function AnswerSheetScanScreen() {
             )}
           </View>
 
+          {sheet.essayPoints.map((max, essay) => {
+            const points = reading.essayPoints[essay];
+            const state = reading.essayStates[essay];
+            const needsInput = points == null;
+            return (
+              <View
+                key={`essay-${essay}`}
+                style={[styles.itemRow, styles.essayRow, { borderColor: needsInput || state !== 'read' ? t.warning : t.border, backgroundColor: t.card }]}
+              >
+                <Text style={[styles.essayLabel, { color: t.foreground }]}>Essay {essay + 1}</Text>
+                <View style={styles.essayInputWrap}>
+                  <TextInput
+                    value={points == null ? '' : String(points)}
+                    onChangeText={(text) => setEssayPoints(essay, text)}
+                    keyboardType="number-pad"
+                    placeholder="—"
+                    placeholderTextColor={t.mutedForeground}
+                    maxLength={2}
+                    style={[styles.essayInput, { borderColor: t.border, color: t.foreground }]}
+                    accessibilityLabel={`Essay ${essay + 1} points`}
+                  />
+                  <Text style={{ color: t.mutedForeground, fontWeight: '700' }}>/ {max}</Text>
+                </View>
+                {needsInput && state !== 'read' && <Text style={[styles.essayHint, { color: t.warning }]}>{ESSAY_HINT[state]}</Text>}
+              </View>
+            );
+          })}
+
           {reading.answers.map((answer, item) => {
             const key = sheet.answers[item];
             const state = reading.states[item];
@@ -210,7 +340,7 @@ export default function AnswerSheetScanScreen() {
               <View key={item} style={[styles.itemRow, { borderColor: state === 'answered' ? t.border : t.warning, backgroundColor: t.card }]}>
                 <Text style={[styles.itemNo, { color: t.mutedForeground }]}>{item + 1}</Text>
                 <View style={styles.choices}>
-                  {Array.from({ length: sheet.choiceCount }, (_, c) => (
+                  {Array.from({ length: itemChoices(sheet, item) }, (_, c) => (
                     <TouchableOpacity
                       key={c}
                       onPress={() => setAnswer(item, c)}
@@ -220,7 +350,7 @@ export default function AnswerSheetScanScreen() {
                         answer === c && { backgroundColor: t.primary, borderColor: t.primary },
                       ]}
                     >
-                      <Text style={{ color: answer === c ? t.primaryForeground : t.foreground, fontWeight: '700' }}>{letter(c)}</Text>
+                      <Text style={{ color: answer === c ? t.primaryForeground : t.foreground, fontWeight: '700' }}>{choiceLabel(sheet, item, c)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -238,8 +368,8 @@ export default function AnswerSheetScanScreen() {
             <Text style={{ color: t.foreground, fontWeight: '700' }}>Retake</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            disabled={!canWrite || !row || save.isPending}
-            style={[styles.btn, { backgroundColor: t.primary, opacity: !canWrite || !row || save.isPending ? 0.5 : 1 }]}
+            disabled={!canWrite || !row || essayMissing || save.isPending}
+            style={[styles.btn, { backgroundColor: t.primary, opacity: !canWrite || !row || essayMissing || save.isPending ? 0.5 : 1 }]}
             onPress={() => save.mutate()}
           >
             {save.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Save score</Text>}
@@ -250,19 +380,21 @@ export default function AnswerSheetScanScreen() {
   }
 
   // ---- Camera --------------------------------------------------------------------------------------
-  const blank = qr && !qr.enrollmentId;
+  const blank = qr && !qr.enrollmentId && !qr.isKey;
   const status = !qr
     ? 'Point the camera at the sheet so the QR code is visible'
     : sheetQuery.isLoading || scoresheetQuery.isLoading
       ? 'Loading sheet…'
       : sheetQuery.isError
         ? "This sheet isn't one of yours, or it no longer exists"
-        : blank
+        : isKey
+          ? `Answer key copy · ${sheet?.title ?? ''}`
+          : blank
           ? 'Blank copy — it has no student, so its score cannot be posted'
           : !row
             ? "This student isn't in the class record"
             : `${studentName} · ${sheet?.title ?? ''}`;
-  const ready = !!sheet && !!row && step === 'scan';
+  const ready = !!sheet && (isKey || !!row) && step === 'scan';
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]}>
@@ -278,6 +410,7 @@ export default function AnswerSheetScanScreen() {
       </View>
       <View style={styles.top}>
         <Text style={styles.status}>{status}</Text>
+        {keySavedFor && <Text style={styles.statusSmall}>Answer key saved for {keySavedFor}</Text>}
         {saved.length > 0 && (
           <Text style={styles.statusSmall}>
             Saved {saved.length}: {saved[0].name} {saved[0].score}/{saved[0].max}
@@ -321,6 +454,11 @@ const styles = StyleSheet.create({
   itemNo: { width: 26, textAlign: 'right', fontWeight: '700' },
   choices: { flex: 1, flexDirection: 'row', gap: 8 },
   choice: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  essayRow: { flexWrap: 'wrap', paddingVertical: 10 },
+  essayLabel: { width: 70, fontWeight: '800' },
+  essayInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  essayInput: { width: 64, height: 38, borderWidth: 1.5, borderRadius: 10, textAlign: 'center', fontSize: 16, fontWeight: '700' },
+  essayHint: { flexBasis: '100%', fontSize: 12 },
   bar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: 10, padding: 12, borderTopWidth: 1,
     paddingBottom: Platform.OS === 'ios' ? 28 : 12,
