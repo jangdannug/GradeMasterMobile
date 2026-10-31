@@ -41,7 +41,7 @@ type FieldErrors = { email?: string; password?: string };
 export default function AuthScreen() {
   const { isLoading, login, loginAsDemo, passwordChangeToken } = useAuthStore();
   const school = useSchoolStore((s) => s.school);
-  const clearSchool = useSchoolStore((s) => s.clearSchool);
+  const changeSchool = useSchoolStore((s) => s.changeSchool);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -129,7 +129,7 @@ export default function AuthScreen() {
                   </Text>
                   {!!school.code && <Text style={styles.schoolCode}>{school.code.toUpperCase()}</Text>}
                 </View>
-                <TouchableOpacity onPress={clearSchool} disabled={isLoading} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity onPress={changeSchool} disabled={isLoading} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Text style={styles.changeSchool}>Not your school? Change school</Text>
                 </TouchableOpacity>
               </View>

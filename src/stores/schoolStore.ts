@@ -6,6 +6,8 @@ import { secureStorage } from './secureStorage';
 
 interface SchoolState {
   school: SelectedSchool | null;
+  // The school set aside by "Change school", so the code screen can cancel back to it
+  previousSchool: SelectedSchool | null;
   // False until the persisted selection has been read, so the code screen does not flash on launch
   hydrated: boolean;
 
@@ -13,13 +15,16 @@ interface SchoolState {
   selectSchool: (code: string) => Promise<SelectedSchool>;
   /** Saves a school without a lookup (the dev-only demo login) */
   setSchool: (school: SelectedSchool) => void;
-  clearSchool: () => void;
+  /** Returns to the code screen, keeping the current school to cancel back to */
+  changeSchool: () => void;
+  cancelChangeSchool: () => void;
 }
 
 export const useSchoolStore = create<SchoolState>()(
   persist(
     (set, get) => ({
       school: null,
+      previousSchool: null,
       hydrated: false,
 
       selectSchool: async (code: string) => {
@@ -30,19 +35,25 @@ export const useSchoolStore = create<SchoolState>()(
 
       setSchool: (school: SelectedSchool) => {
         // One school's cached data must never show for another
-        if (get().school?.schoolId !== school.schoolId) queryClient.clear();
-        set({ school });
+        const current = get().school ?? get().previousSchool;
+        if (current?.schoolId !== school.schoolId) queryClient.clear();
+        set({ school, previousSchool: null });
       },
 
-      clearSchool: () => {
-        queryClient.clear();
-        set({ school: null });
+      changeSchool: () => {
+        const { school } = get();
+        if (school) set({ school: null, previousSchool: school });
+      },
+
+      cancelChangeSchool: () => {
+        const { previousSchool } = get();
+        if (previousSchool) set({ school: previousSchool, previousSchool: null });
       },
     }),
     {
       name: 'gm_school_selection',
       storage: createJSONStorage(() => secureStorage),
-      partialize: (state) => ({ school: state.school }),
+      partialize: (state) => ({ school: state.school, previousSchool: state.previousSchool }),
       onRehydrateStorage: () => () => {
         useSchoolStore.setState({ hydrated: true });
       },

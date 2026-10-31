@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,7 +21,19 @@ import { useSchoolStore } from '../../stores/schoolStore';
 export default function SchoolCodeScreen() {
   const t = useDashboardTheme();
   const selectSchool = useSchoolStore((s) => s.selectSchool);
-  const [code, setCode] = useState('');
+  // Set when the user came here from "Change school" rather than a first launch
+  const previousSchool = useSchoolStore((s) => s.previousSchool);
+  const cancelChangeSchool = useSchoolStore((s) => s.cancelChangeSchool);  const [code, setCode] = useState('');
+
+  // Android back button cancels the change too
+  useEffect(() => {
+    if (!previousSchool) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      cancelChangeSchool();
+      return true;
+    });
+    return () => sub.remove();
+  }, [previousSchool, cancelChangeSchool]);
   const [error, setError] = useState<SchoolLookupError | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -42,13 +55,30 @@ export default function SchoolCodeScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.background }]}>
+      {!!previousSchool && (
+        <TouchableOpacity
+          onPress={cancelChangeSchool}
+          disabled={loading}
+          style={styles.cancel}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Cancel and go back to ${previousSchool.name}`}
+        >
+          <Ionicons name="chevron-back" size={22} color={t.primary} />
+          <Text style={[styles.cancelText, { color: t.primary }]}>Cancel</Text>
+        </TouchableOpacity>
+      )}
       <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={[styles.logo, { backgroundColor: t.primary }]}>
             <Ionicons name="school" size={38} color={t.primaryForeground} />
           </View>
           <Text style={[styles.title, { color: t.foreground }]}>Find your school</Text>
-          <Text style={[styles.subtitle, { color: t.muted }]}>Enter the school code from your school administrator.</Text>
+          <Text style={[styles.subtitle, { color: t.muted }]}>
+            {previousSchool
+              ? `Currently ${previousSchool.name}. Enter the code of the school to switch to.`
+              : 'Enter the school code from your school administrator.'}
+          </Text>
 
           <View style={styles.field}>
             <Text style={[styles.label, { color: t.muted }]}>School code</Text>
@@ -103,6 +133,8 @@ export default function SchoolCodeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  cancel: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8 },
+  cancelText: { fontSize: 16, fontWeight: '600' },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 6 },
   logo: { width: 76, height: 76, borderRadius: 22, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 14 },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center' },
